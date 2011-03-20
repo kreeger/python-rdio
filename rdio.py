@@ -25,7 +25,7 @@
 """A library that provides a Python interface to Rdio's API."""
 
 __author__ = 'benjaminkreeger@gmail.com'
-__version__ = '0.1'
+__version__ = '0.2'
 
 import ast
 import cgi

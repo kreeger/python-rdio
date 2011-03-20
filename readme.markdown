@@ -8,7 +8,7 @@ Function names and objects will follow Rdio's API specs for [methods](http://dev
 
 ## Notes
 
-Please don't fire up `setuptools` just yet. I clearly don't know how to use it.
+I'll eventually get `setuptools` rockin' for this thing. Once I figure out how to use it.
 
 ## Requirements
 
@@ -27,9 +27,7 @@ Please don't fire up `setuptools` just yet. I clearly don't know how to use it.
 	
 	# Set authorization: get authorization URL, then pass back the PIN.
     token_dict = manager.get_token_and_login_url()
-    print 'Authorize this application at: %s?oauth_token=%s' % (
-                                                     token_dict['login_url'],
-                                                     token_dict['oauth_token'])
+    print 'Authorize this application at: %s?oauth_token=%s' % (token_dict['login_url'], token_dict['oauth_token'])
     oauth_verifier = raw_input('Enter the PIN / oAuth verifier: ').strip()
     authorization_dict = manager.authorize_with_verifier(oauth_verifier)
 	
