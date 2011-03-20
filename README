@@ -1,0 +1,6 @@
+Another Python library for accessing the Rdio API, using OAuth. Inspired
+by Rdio's own 'rdio-python' library at http://github.com/rdio/rdio-python/ .
+To use, do:
+
+> import rdio
+> rdio_manager = rdio.Api(CONSUMER_KEY, CONSUMER_SECRET)
