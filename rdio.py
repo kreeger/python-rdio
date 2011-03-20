@@ -27,10 +27,11 @@
 __author__ = 'benjaminkreeger@gmail.com'
 __version__ = '0.2'
 
-import ast
 import cgi
 import inspect
 import oauth2 as oauth
+import re
+import json
 import urllib
 
 root_url = 'http://api.rdio.com/1/'
@@ -330,14 +331,33 @@ class Api(object):
         except ApiError as e:
             print "API error: %s." % e.msg
     
+    def add_friend(self, user):
+        """Add a friend to the current user. Returns True if the add succeeds,
+        and False if it fails. Requires authentication.
+        
+        Keyword arguments:
+        user -- the key of the user to add as a friend.
+        
+        """
+        data = {'method': methods['add_friend'], 'user': user}
+        if not self._oauth_access_token:
+            print "User is not authenticated. %s cannot be called." % (
+                data['method'],)
+            return None
+        
+        result = self.call_api(data)
+        print result
+        return result
+    
     def current_user(self, extras=None):
-        """Gets information about the currently logged in user.
+        """Gets information about the currently logged in user. Requires
+        authentication.
         
         Keyword arguments:
         extras -- a list of additional fields to return.
         
         """
-        data = {'method': methods[inspect.stack()[0][3]]}
+        data = {'method': methods['current_user']}
         
         if not self._oauth_access_token:
             print "User is not authenticated. %s cannot be called." % (
@@ -349,7 +369,6 @@ class Api(object):
         
         result = self.call_api(data)
         if result:
-            print "Got currentUser result: %s" % result
             return User(result)
         else:
             return None
@@ -363,18 +382,24 @@ class Api(object):
         vanity_name -- the desired user's vanity name.
         
         """
-        data = {'method': methods[inspect.stack()[0][3]]}
+        try:
+            data = {'method': methods['find_user']}
         
-        if email:
-            data['email'] = email
-        if vanity_name:
-            data['vanityName'] = vanity_name
+            if email:
+                if validate_email(email):
+                    data['email'] = email
+                else:
+                    raise ApiError("Invalid email address: %s." % email)
+            if vanity_name:
+                data['vanityName'] = vanity_name
         
-        result = self.call_api(data)
-        if result:
-            return User(result)
-        else:
-            return None
+            result = self.call_api(data)
+            if result:
+                return User(result)
+            else:
+                return None
+        except ApiError as e:
+            print "API error: %s" % e.msg
     
     def call_api(self, data):
         """Calls the Rdio API. Responsible for handling errors from the API.
@@ -387,7 +412,7 @@ class Api(object):
         try:
             response, content = self._oauth_client.request(root_url,
                                                            http_method, data)
-            parsed_content = ast.literal_eval(content)
+            parsed_content = json.loads(content)
             status = parsed_content['status']
             if status == 'error':
                 raise ApiError(parsed_content['message'])
@@ -396,4 +421,16 @@ class Api(object):
                 return parsed_content['result']
         except (ApiError) as e:
             print "API error: %s" % e.msg
+
+def validate_email(email):
+    """Validates email address. Should work for now.
+    Yanked from http://goo.gl/EuVRg
     
+    Keyword arguments:
+    email -- the text string of an email to validate.
+    
+    """
+    if len(email) > 7:
+        if re.match("^.+\\@(\\[?)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,3}|[0-9]{1,3})(\\]?)$", email) != None:
+            return 1
+    return 0
