@@ -291,7 +291,7 @@ class Api(object):
             print "Something happened during %s." % inspect.stack()[0][3]
             pass
     
-    def authorize(self, oauth_verifier):
+    def authorize_with_verifier(self, oauth_verifier):
         """Authorizes the oAuth handler with verifier and upgrades the token
         and client. Returns dictionary containing access key and secret if
         success; None if failure.
