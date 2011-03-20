@@ -15,4 +15,4 @@ Another Python library for accessing the [Rdio API](http://developer.rdio.com/),
 
 Because you all care.
 
-	* **Version 0.1**: Initial release. Includes data models, unauthenticated API call logic, and one call.
+ * **Version 0.1**: Initial release. Includes data models, unauthenticated API call logic, and one call.
