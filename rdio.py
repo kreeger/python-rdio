@@ -345,9 +345,25 @@ class Api(object):
                 data['method'],)
             return None
         
-        result = self.call_api(data)
-        print result
-        return result
+        return self.call_api(data)
+    
+    def add_to_collection(self, keys):
+        """Adds tracks or playlists to the current user's collection.
+        
+        Keyword arguments:
+        keys -- a list of tracks or playlists to add to the user's collection.
+        
+        """
+        data = {
+            'method': methods['add_to_collection'],
+            'keys': parse_list_to_comma_delimited_string(keys)}
+        
+        if not self._oauth_access_token:
+            print "User is not authenticated. %s cannot be called." % (
+                data['method'],)
+            return None
+        
+        return self.call_api(data)
     
     def current_user(self, extras=None):
         """Gets information about the currently logged in user. Requires
@@ -365,7 +381,7 @@ class Api(object):
             return None
             
         if extras:
-            data['extras'] = extras
+            data['extras'] = parse_list_to_comma_delimited_string(extras)
         
         result = self.call_api(data)
         if result:
@@ -401,6 +417,54 @@ class Api(object):
         except ApiError as e:
             print "API error: %s" % e.msg
     
+    def get(self, keys, extras=None):
+        """Fetch one or more objects from Rdio.
+        
+        Keyword arguments:
+        keys   -- a list of keys for the objects to fetch.
+        extras -- optional. A list of additional fields to return.
+        
+        """
+        data = {
+            'method': methods['get'],
+            'keys': parse_list_to_comma_delimited_string(keys)}
+        
+        if extras:
+            data['extras'] = parse_list_to_comma_delimited_string(extras)
+        
+        results = self.call_api(data)
+        
+        return parse_result_list(results)
+    
+    def search(self, query, types=None, never_or=None, extras=None, start=None,
+               count=None):
+        """Search for artists, albums, tracks, users, or all kinds of
+        objects.
+        
+        Keyword arguments:
+        query    -- the search query.
+        types    -- optional. List of types to include in results. Valid values
+            are "Artist", "Album", "Track", "Playlist", and "User".
+        never_or -- optional. Disables Rdio's and/or query default "and".
+        extras   -- optional. A list of additional fields to return.
+        start    -- optional. The offset of the first result to return.
+        count    -- optional. The maximum number of results to return.
+        
+        """
+        data = {'method': methods['search'], 'query': query}
+        
+        if types: 
+            data['types'] = parse_list_to_comma_delimited_string(types)
+        if never_or: data['never_or'] = never_or
+        if extras:
+            data['extras'] = parse_list_to_comma_delimited_string(extras)
+        if start: data['start'] = start
+        if count: data['count'] = count
+        
+        results = self.call_api(data)
+        
+        return parse_result_list(results)
+    
     def call_api(self, data):
         """Calls the Rdio API. Responsible for handling errors from the API.
         
@@ -434,3 +498,19 @@ def validate_email(email):
         if re.match("^.+\\@(\\[?)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,3}|[0-9]{1,3})(\\]?)$", email) != None:
             return 1
     return 0
+
+def parse_list_to_comma_delimited_string(list_object):
+    """Parses a list object into a comma-delimited string."""
+    string = ''
+    for thing in list_object:
+        string += '%s,' % thing
+    return string[:-1]
+
+def parse_result_list(results):
+    """Takes a dictionary and returns a list of RdioObjects."""
+    objects = []
+    for key in results:
+        rdio_object = results[key]
+        if rdio_object['type'] == 'a':
+            objects.append(Artist(rdio_object))
+    return objects

@@ -1,3 +1,3 @@
 *.DS_Store
 *.pyc
-*_exclude.py
+*_exclude.*
