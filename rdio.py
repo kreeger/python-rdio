@@ -35,6 +35,7 @@ import urllib
 
 root_url = 'http://api.rdio.com/1/'
 oauth_token_url = 'http://api.rdio.com/oauth/request_token'
+oauth_access_url = 'http://api.rdio.com/oauth/access_token'
 root_site_url = 'http://www.rdio.com'
 http_method = 'POST'
 methods = {
@@ -217,29 +218,151 @@ class Api(object):
                  consumer_secret=None,
                  access_token_key=None,
                  access_token_secret=None):
-        """Instantiates a new Rdio API object."""
-        self.set_credentials(consumer_key, consumer_secret)
+        """Instantiates a new Rdio API object.
+        
+        Keyword arguments:
+        consumer_key        -- The oAuth API key for the application.
+        consumer_secret     -- The oAuth API secret for the application.
+        access_token_key    -- The oAuth user's token key.
+        access_token_secret -- The oAuth user's token secret.
+        
+        
+        """
+        # The only thing to do right now is to set credentials.
+        self.set_credentials(consumer_key=consumer_key,
+                             consumer_secret=consumer_secret,
+                             access_token_key=access_token_key,
+                             access_token_secret=access_token_secret)
     
     def set_credentials(self,
-                       consumer_key,
-                       consumer_secret,
+                       consumer_key=None,
+                       consumer_secret=None,
                        access_token_key=None,
                        access_token_secret=None):
-        """Sets the consumer_key and _secret for this instance."""
-        self._consumer_key        = consumer_key
-        self._consumer_secret     = consumer_secret
-        self._access_token_key    = access_token_key
-        self._access_token_secret = access_token_secret
+        """Sets the consumer_key and _secret for this instance.
         
-        if access_token_key and access_token_secret:
-            self._oauth_token    = oauth.Token(key=access_token_key,
-                                               secret=access_token_secret)
+        Keyword arguments:
+        consumer_key        -- The oAuth API key for the application.
+        consumer_secret     -- The oAuth API secret for the application.
+        access_token_key    -- The oAuth user's token key.
+        access_token_secret -- The oAuth user's token secret.
+        
+        """
+        
+        # Set our keys and secrets, depending on what was passed in.
         if consumer_key and consumer_secret:
-            self._oauth_consumer = oauth.Consumer(key=consumer_key,
-                                                  secret=consumer_secret)
-            self._oauth_client   = oauth.Client(self._oauth_consumer)
+            # Get our consumer object, which is just made of a key and secret
+            self._oauth_consumer     = oauth.Consumer(key=consumer_key,
+                                                      secret=consumer_secret)
+            # Get our client object, which is simply a consumer (un-authed)
+            self._oauth_client       = oauth.Client(self._oauth_consumer)
+        if access_token_key and access_token_secret:
+            # Get our token object, which identifies us to the API for the user
+            # Note: must check for access token when making authenticated calls
+            self._oauth_access_token = oauth.Token(key=access_token_key,
+                                                   secret=access_token_secret)
+            # Upgrade our client object to talk to the API on the user's behalf
+            self._oauth_client       = oauth.Client(self._oauth_consumer,
+                                                     self._oauth_access_token)
+    
+    def get_token_and_login_url(self):
+        """Gets the oAuth token via the oauth2 library."""
+        data = urllib.urlencode({'oauth_callback': 'oob'})
+        try:
+            # Get token and secret from Rdio's authorization endpoint.
+            response, content  = self._oauth_client.request(oauth_token_url,
+                                                            http_method, data)
+            # Make a dict out of it! Then, save entries to local variables.
+            parsed_content     = dict(cgi.parse_qsl(content))
+            token              = parsed_content['oauth_token']
+            token_secret       = parsed_content['oauth_token_secret']
+            login_url          = parsed_content['login_url']
+            callback_confirmed = parsed_content['oauth_callback_confirmed']
+            # Save our request token object. Don't do this in our 
+            # set_credentials function as it's just for the request token,
+            # not the full access token.
+            self._oauth_request_token = oauth.Token(key=token,
+                                                    secret=token_secret)
+            # Remove the secret before we send it back.
+            del parsed_content['oauth_token_secret']
+            # Send back what the user needs to know.
+            return parsed_content
+        except:
+            print "Something happened during %s." % inspect.stack()[0][3]
+            pass
+    
+    def authorize(self, oauth_verifier):
+        """Authorizes the oAuth handler with verifier and upgrades the token
+        and client. Returns dictionary containing access key and secret if
+        success; None if failure.
+        
+        Keyword arguments:
+        oauth_verifier -- required. The PIN code from oAuth.
+        
+        """
+        try:
+            # If we don't have a request token yet, let the user know.
+            if not self._oauth_request_token:
+                raise ApiError("Must set token first.")
+            # Tell the token object to get verified.
+            self._oauth_request_token.set_verifier(oauth_verifier)
+            # Update our client object with our private token object.
+            # Don't do this in our set_credentials function as it's just for
+            # the request token, not the full access token.
+            self._oauth_client = oauth.Client(self._oauth_consumer,
+                                              self._oauth_request_token)
+            # Get our full-blown, shiny new access token.
+            response, content  = self._oauth_client.request(oauth_access_url,
+                                                    http_method)
+            parsed_content     = dict(cgi.parse_qsl(content))
+            token              = parsed_content['oauth_token']
+            token_secret       = parsed_content['oauth_token_secret']
+            # Send our token to our credential handler function.
+            self.set_credentials(access_token_key=token,
+                                 access_token_secret=token_secret)
+            # If the private token was made, return True; else return False.
+            if self._oauth_access_token:
+                return {
+                    'access_token_key':    token,
+                    'access_token_secret': token_secret}
+            else:
+                return None
+        except ApiError as e:
+            print "API error: %s." % e.msg
+    
+    def current_user(self, extras=None):
+        """Gets information about the currently logged in user.
+        
+        Keyword arguments:
+        extras -- a list of additional fields to return.
+        
+        """
+        data = {'method': methods[inspect.stack()[0][3]]}
+        
+        if not self._oauth_access_token:
+            print "User is not authenticated. %s cannot be called." % (
+                data['method'],)
+            return None
+            
+        if extras:
+            data['extras'] = extras
+        
+        result = self.call_api(data)
+        if result:
+            print "Got currentUser result: %s" % result
+            return User(result)
+        else:
+            return None
     
     def find_user(self, email=None, vanity_name=None):
+        """Finds an Rdio user by email or username. Exactly one of email or
+        vanity_name must be supplied.
+        
+        Keyword arguments:
+        email       -- the desired user's email address.
+        vanity_name -- the desired user's vanity name.
+        
+        """
         data = {'method': methods[inspect.stack()[0][3]]}
         
         if email:
@@ -247,7 +370,6 @@ class Api(object):
         if vanity_name:
             data['vanityName'] = vanity_name
         
-        print data
         result = self.call_api(data)
         if result:
             return User(result)
@@ -255,17 +377,23 @@ class Api(object):
             return None
     
     def call_api(self, data):
-        """Calls the Rdio API. Responsible for handling errors from the API."""
+        """Calls the Rdio API. Responsible for handling errors from the API.
+        
+        Keyword arguments:
+        data -- the dictionary of data for the call, including 'method' param.
+        
+        """
+        data = urllib.urlencode(data)
         try:
-            request = self._oauth_client.request(root_url, http_method,
-                                                 urllib.urlencode(data))
-            request_dict = ast.literal_eval(request[1])
-            if request_dict['status'] == 'error':
-                raise ApiError(request_dict['message'])
+            response, content = self._oauth_client.request(root_url,
+                                                           http_method, data)
+            parsed_content = ast.literal_eval(content)
+            status = parsed_content['status']
+            if status == 'error':
+                raise ApiError(parsed_content['message'])
                 return None
-            elif request_dict['status'] == 'ok':
-                return request_dict['result']
-            return request_dict
+            elif status == 'ok':
+                return parsed_content['result']
         except (ApiError) as e:
             print "API error: %s" % e.msg
     
