@@ -38,9 +38,7 @@ I'll eventually get `setuptools` rockin' for this thing. Once I figure out how t
 	
 	# Make an authorized call.
 	current_user = manager.current_user()
-	print 'The full name of the current user is %s %s.' % (
-													   current_user.first_name,
-													   current_user.last_name,)
+	print 'The full name of the current user is %s %s.' % ( current_user.first_name, current_user.last_name,)
 	
 ## Version history
 
