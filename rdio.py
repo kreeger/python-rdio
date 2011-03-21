@@ -510,6 +510,14 @@ def parse_result_list(results):
     objects = []
     for key in results:
         rdio_object = results[key]
-        if rdio_object['type'] == 'a':
+        if rdio_types[rdio_object['type']] == 'Artist':
             objects.append(Artist(rdio_object))
+        if rdio_types[rdio_object['type']] == 'Album':
+            objects.append(Album(rdio_object))
+        if rdio_types[rdio_object['type']] == 'Track':
+            objects.append(Track(rdio_object))
+        if rdio_types[rdio_object['type']] == 'Playlist':
+            objects.append(Playlist(rdio_object))
+        if rdio_types[rdio_object['type']] == 'User':
+            objects.append(User(rdio_object))
     return objects
