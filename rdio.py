@@ -71,6 +71,19 @@ methods = {
     'search_suggestions': 'searchSuggestions',
 }
 
+rdio_types = {
+    'r': 'Artist',
+    'a': 'Album',
+    't': 'Track',
+    'p': 'Playlist',
+    's': 'User',
+}
+
+genders = {
+    'm': 'Male',
+    'f': 'Female',
+}
+
 class RdioObject(object):
     """Describes common fields a base Rdio object will have."""
     
@@ -80,17 +93,7 @@ class RdioObject(object):
         self.url = data['url']
         self.icon = data['icon']
         self.base_icon = data['baseIcon']
-        self.rdio_type = None
-        if data['type'] == 'r':
-            self.rdio_type = 'Artist'
-        elif data['type'] == 'a':
-            self.rdio_type = 'Album'
-        elif data['type'] == 't':
-            self.rdio_type = 'Track'
-        elif data['type'] == 'p':
-            self.rdio_type = 'Playlist'
-        elif data['type'] == 's':
-            self.rdio_type = 'User'
+        self.rdio_type = rdio_types[data['type']]
 
 class Artist(RdioObject):
     """Describes an Rdio artist."""
@@ -177,11 +180,7 @@ class User(RdioObject):
             self.first_name = data['firstName']
             self.last_name = data['lastName']
             self.library_version = data['libraryVersion']
-            self._gender = data['gender']
-            if self._gender == 'm':
-                self.gender = 'Male'
-            elif self._gender == 'f':
-                self.gender = 'Female'
+            self.gender = genders[data['gender']]
             self.user_type = data['type']
             self.username = None
             self.last_song_played = None
