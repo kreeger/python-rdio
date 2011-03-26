@@ -34,6 +34,8 @@ import re
 import json
 import urllib
 
+from rdio_objects import *
+
 root_url = 'http://api.rdio.com/1/'
 oauth_token_url = 'http://api.rdio.com/oauth/request_token'
 oauth_access_url = 'http://api.rdio.com/oauth/access_token'
@@ -71,144 +73,26 @@ methods = {
     'search_suggestions': 'searchSuggestions',
 }
 
-rdio_types = {
-    'r': 'Artist',
-    'a': 'Album',
-    't': 'Track',
-    'p': 'Playlist',
-    's': 'User',
-}
-
-genders = {
-    'm': 'Male',
-    'f': 'Female',
-}
-
-class RdioObject(object):
-    """Describes common fields a base Rdio object will have."""
-    
-    def __init__(self, data=None):
-        self._data = data
-        self.key = data['key']
-        self.url = data['url']
-        self.icon = data['icon']
-        self.base_icon = data['baseIcon']
-        self.rdio_type = rdio_types[data['type']]
-
-class Artist(RdioObject):
-    """Describes an Rdio artist."""
-    
-    def __init__(self, data=None):
-        if data:
-            super(Artist, self).__init__(data)
-            self.name = data['name']
-            self.track_count = data['length']
-            self.has_radio = data['hasRadio']
-            self.short_url = data['shortUrl']
-            self.album_count = None
-            if data['albumCount']:
-                self.album_count = data['albumCount']
-
-class MusicObject(RdioObject):
-    """Describes an Rdio music object."""
-    
-    def __init__(self, data=None):
-        if data:
-            super(MusicObject, self).__init__(data)
-            self.name = data['name']
-            self.artist_name = data['artist']
-            self.artist_url = data['artistUrl']
-            self.artist_key = data['artistKey']
-            self.is_explicit = data['isExplicit']
-            self.is_clean = data['isClean']
-            self.price = data['price']
-            self.can_stream = data['canStream']
-            self.can_sample = data['canSample']
-            self.can_tether = data['canTether']
-            self.short_url = data['shortUrl']
-            self.embed_url = data['embedUrl']
-            self.duration = data['duration']
-
-class Album(MusicObject):
-    """Describes an Rdio album."""
-    
-    def __init__(self, data=None):
-        if data:
-            super(Album, self).__init__(data)
-            self.track_keys = data['trackKeys']
-            self.release_date = data['displayDate']
-            self.release_date_iso = None
-            if data['releaseDateISO']:
-                self.release_date_iso = data['releaseDateISO']
-
-class Track(MusicObject):
-    """Describes an Rdio track."""
-    
-    def __init__(self, data=None):
-        if data:
-            super(Track, self).__init__(data)
-            self.album_artist_name = data['albumArtist']
-            self.album_artist_key = data['albumArtistKey']
-            self.can_download = data['canDownload']
-            self.can_download_album_only = data['canDownloadAlbumOnly']
-            self.play_count = None
-            if data['playCount']:
-                self.play_count = data['playCount']
-
-class Playlist(RdioObject):
-    """Describes an Rdio playlist."""
-    
-    def __init__(self, data=None):
-        if data:
-            super(Playlist, self).__init__(data)
-            self.name = data['name']
-            self.track_count = data['length']
-            self.owner_name = data['owner']
-            self.owner_url = data['ownerUrl']
-            self.owner_key = data['ownerKey']
-            self.owner_icon = data['ownerIcon']
-            self.last_updated = data['lastUpdated']
-            self.short_url = data['shortUrl']
-            self.embed_url = data['embedUrl']
-
-class User(RdioObject):
-    """Describes an Rdio user."""
-    
-    def __init__(self, data=None):
-        if data:
-            super(User, self).__init__(data)
-            self.first_name = data['firstName']
-            self.last_name = data['lastName']
-            self.library_version = data['libraryVersion']
-            self.gender = genders[data['gender']]
-            self.user_type = data['type']
-            self.username = None
-            self.last_song_played = None
-            self.display_name = None
-            self.track_count = None
-            self.last_song_play_time = None
-            if 'username' in data:
-                self.username = data['username']
-            if 'lastSongPlayed' in data:
-                self.last_song_played = data['lastSongPlayed']
-            if 'displayName' in data:
-                self.display_name = data['displayName']
-            if 'trackCount' in data:
-                self.track_count = data['trackCount']
-            if 'lastSongPlayTime' in data:
-                self.last_song_play_time = data['lastSongPlayTime']
-    
-    def get_full_url(self):
-        return root_site_url + self.url
-
 class ApiError(Exception):
     """Handles exceptions around missing API arguments."""
     
     def __init__(self, msg):
+        super(ApiError, self).__init__(msg)
         self.msg = msg
     
     def __str__(self):
         return repr(self.msg)
+
+class RdioNotAuthenticatedException(Exception):
+    """Handles exceptions around not being logged in."""
+    
+    def __init__(self, msg):
+        super(RdioNotAuthenticatedException, self).__init__(msg)
+        print "User is not authenticated. %s cannot be called." % (msg,)
+    
+    def __str__(self):
+        return repr("User is not authenticated. %s cannot be called." %
+            (self.msg,))
 
 class Api(object):
     """Handles communication with Rdio API."""
@@ -234,11 +118,8 @@ class Api(object):
                              access_token_key=access_token_key,
                              access_token_secret=access_token_secret)
     
-    def set_credentials(self,
-                       consumer_key=None,
-                       consumer_secret=None,
-                       access_token_key=None,
-                       access_token_secret=None):
+    def set_credentials(self, consumer_key=None, consumer_secret=None,
+                       access_token_key=None, access_token_secret=None):
         """Sets the consumer_key and _secret for this instance.
         
         Keyword arguments:
@@ -339,12 +220,7 @@ class Api(object):
         
         """
         data = {'method': methods['add_friend'], 'user': user}
-        if not self._oauth_access_token:
-            print "User is not authenticated. %s cannot be called." % (
-                data['method'],)
-            return None
-        
-        return self.call_api(data)
+        return self.call_api_authenticated(data)
     
     def add_to_collection(self, keys):
         """Adds tracks or playlists to the current user's collection.
@@ -356,13 +232,43 @@ class Api(object):
         data = {
             'method': methods['add_to_collection'],
             'keys': parse_list_to_comma_delimited_string(keys)}
+        return self.call_api_authenticated(data)
+    
+    def add_to_playlist(self, playlist, tracks):
+        """Add a track to a playlist.
         
-        if not self._oauth_access_token:
-            print "User is not authenticated. %s cannot be called." % (
-                data['method'],)
-            return None
+        Keyword arguments:
+        playlist -- key of the playlist to add to.
+        tracks   -- keys of tracks to add to the playlist.
         
-        return self.call_api(data)
+        """
+        data = {
+            'method': methods['add_to_playlist'],
+            'playlist': playlist,
+            'keys': parse_list_to_comma_delimited_string(tracks)}
+        return self.call_api_authenticated(data)
+    
+    def create_playlist(self, name, description, tracks, extras=None):
+        """Create a new playlist in the current user's collection. The new
+        playlist will be returned if the creation is successful; otherwise null
+        will be returned.
+        
+        Keyword arguments:
+        name        -- playlist name.
+        description -- playlist description.
+        tracks      -- a list of initial tracks to start the playlist.
+        extras      -- optional. A list of additional fields to return.
+        """
+        data = {
+            'method': methods['create_playlist'],
+            'name': name,
+            'description': description,
+            'tracks': parse_list_to_comma_delimited_string(tracks)}
+        if extras:
+            data['extras'] = parse_list_to_comma_delimited_string(extras)
+        result = self.call_api_authenticated(data)
+        
+        return RdioPlaylist(result) if result else None
     
     def current_user(self, extras=None):
         """Gets information about the currently logged in user. Requires
@@ -373,20 +279,21 @@ class Api(object):
         
         """
         data = {'method': methods['current_user']}
-        
-        if not self._oauth_access_token:
-            print "User is not authenticated. %s cannot be called." % (
-                data['method'],)
-            return None
-            
         if extras:
             data['extras'] = parse_list_to_comma_delimited_string(extras)
+        result = self.call_api_authenticated(data)
         
-        result = self.call_api(data)
-        if result:
-            return User(result)
-        else:
-            return None
+        return RdioUser(result) if result else None
+    
+    def delete_playlist(self, playlist):
+        """Delete a playlist.
+        
+        Keyword arguments:
+        playlist -- the key of the playlist to delete.
+        
+        """
+        data = {'method': methods['delete_playlist'], 'playlist': playlist}
+        return self.call_api_authenticated(data)
     
     def find_user(self, email=None, vanity_name=None):
         """Finds an Rdio user by email or username. Exactly one of email or
@@ -397,24 +304,14 @@ class Api(object):
         vanity_name -- the desired user's vanity name.
         
         """
-        try:
-            data = {'method': methods['find_user']}
+        data = {'method': methods['find_user']}
+        if email:
+            if validate_email(email): data['email'] = email
+            else: raise ApiError("Invalid email address: %s." % email)
+        if vanity_name: data['vanityName'] = vanity_name
+        result = self.call_api(data)
         
-            if email:
-                if validate_email(email):
-                    data['email'] = email
-                else:
-                    raise ApiError("Invalid email address: %s." % email)
-            if vanity_name:
-                data['vanityName'] = vanity_name
-        
-            result = self.call_api(data)
-            if result:
-                return User(result)
-            else:
-                return None
-        except ApiError as e:
-            print "API error: %s" % e.msg
+        return RdioUser(result) if result else None
     
     def get(self, keys, extras=None):
         """Fetch one or more objects from Rdio.
@@ -427,22 +324,20 @@ class Api(object):
         data = {
             'method': methods['get'],
             'keys': parse_list_to_comma_delimited_string(keys)}
-        
         if extras:
             data['extras'] = parse_list_to_comma_delimited_string(extras)
         
         results = self.call_api(data)
-        
-        return parse_result_list(results)
+        return parse_result_list(results) if results else None
     
-    def search(self, query, types=None, never_or=None, extras=None, start=None,
+    def search(self, query, types, never_or=None, extras=None, start=None,
                count=None):
         """Search for artists, albums, tracks, users, or all kinds of
         objects.
         
         Keyword arguments:
         query    -- the search query.
-        types    -- optional. List of types to include in results. Valid values
+        types    -- List of types to include in results. Valid values
             are "Artist", "Album", "Track", "Playlist", and "User".
         never_or -- optional. Disables Rdio's and/or query default "and".
         extras   -- optional. A list of additional fields to return.
@@ -451,9 +346,7 @@ class Api(object):
         
         """
         data = {'method': methods['search'], 'query': query}
-        
-        if types: 
-            data['types'] = parse_list_to_comma_delimited_string(types)
+        if types: data['types'] = parse_list_to_comma_delimited_string(types)
         if never_or: data['never_or'] = never_or
         if extras:
             data['extras'] = parse_list_to_comma_delimited_string(extras)
@@ -461,8 +354,21 @@ class Api(object):
         if count: data['count'] = count
         
         results = self.call_api(data)
+        if results:
+            return RdioSearchResult(results,
+                                    parse_result_list(results['results']))
+        else: return None
+    
+    def call_api_authenticated(self, data):
+        """Handles checking authentication before talking to the Rdio API.
         
-        return parse_result_list(results)
+        Keyword arguments:
+        data -- the dictionary of data for the call, including 'method' param.
+        
+        """
+        if not self._oauth_access_token:
+            raise RdioNotAuthenticatedException(data['method'])
+        else: return self.call_api(data)
     
     def call_api(self, data):
         """Calls the Rdio API. Responsible for handling errors from the API.
@@ -471,6 +377,7 @@ class Api(object):
         data -- the dictionary of data for the call, including 'method' param.
         
         """
+        
         data = urllib.urlencode(data)
         try:
             response, content = self._oauth_client.request(root_url,
@@ -484,6 +391,7 @@ class Api(object):
                 return parsed_content['result']
         except (ApiError) as e:
             print "API error: %s" % e.msg
+    
 
 def validate_email(email):
     """Validates email address. Should work for now.
@@ -508,16 +416,15 @@ def parse_list_to_comma_delimited_string(list_object):
 def parse_result_list(results):
     """Takes a dictionary and returns a list of RdioObjects."""
     objects = []
-    for key in results:
-        rdio_object = results[key]
+    for rdio_object in results:
         if rdio_types[rdio_object['type']] == 'Artist':
-            objects.append(Artist(rdio_object))
+            objects.append(RdioArtist(rdio_object))
         if rdio_types[rdio_object['type']] == 'Album':
-            objects.append(Album(rdio_object))
+            objects.append(RdioAlbum(rdio_object))
         if rdio_types[rdio_object['type']] == 'Track':
-            objects.append(Track(rdio_object))
+            objects.append(RdioTrack(rdio_object))
         if rdio_types[rdio_object['type']] == 'Playlist':
-            objects.append(Playlist(rdio_object))
+            objects.append(RdioPlaylist(rdio_object))
         if rdio_types[rdio_object['type']] == 'User':
-            objects.append(User(rdio_object))
+            objects.append(RdioUser(rdio_object))
     return objects
