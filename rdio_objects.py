@@ -1,3 +1,5 @@
+# Declare dictionaries of stuff
+
 rdio_types = {
     'r': 'Artist',
     'a': 'Album',
@@ -10,6 +12,22 @@ rdio_genders = {
     'm': 'Male',
     'f': 'Female',
 }
+
+rdio_activity_types = {
+    0: 'track added to collection',
+    1: 'track added to playlist',
+    3: 'friend added',
+    5: 'user joined',
+    6: 'comment added to track',
+    7: 'comment added to album',
+    8: 'comment added to artist',
+    9: 'comment added to playlist',
+    10: 'track added via match collection',
+    11: 'user subscribed to Rdio',
+    12: 'track synced to mobile',
+}
+
+# Here come the objects
 
 class RdioObject(object):
     """Describes common fields a base Rdio object will have."""
@@ -128,6 +146,9 @@ class RdioUser(RdioObject):
     
     def get_full_url(self):
         return root_site_url + self.url
+    
+    def get_full_name(self):
+        return "%s %s" % (self.first_name, self.last_name,)
 
 class RdioSearchResult(object):
     """Describes an Rdio search result and the extra fields it brings."""
@@ -142,3 +163,36 @@ class RdioSearchResult(object):
             self.playlist_count = data['playlist_count']
             self.track_count = data['track_count']
             self.results = results
+
+class RdioActivityItem(object):
+    """Describes an item in Rdio's history object list."""
+    
+    def __init__(self, data):
+        if data:
+            super(RdioActivityItem, self).__init__()
+            self.owner = RdioUser(data['owner'])
+            self.date = data['date']
+            self.update_type_id = data['update_type']
+            self.update_type = rdio_activity_types[data['update_type']]
+            if 'albums' in data:
+                self.albums = []
+                for album in data['albums']:
+                    self.albums.append(RdioAlbum(album))
+            if 'reviewed_item' in data:
+                self.reviewed_item = derive_rdio_type_from_data(
+                    data['reviewed_item'])
+            if 'comment' in data:
+                self.comment = data['comment']
+
+class RdioActivityStream(object):
+    """Describes a stream of history for a user, for public, etc."""
+    
+    def __init__(self, data):
+        if data:
+            super(RdioActivityStream, self).__init__()
+            self.last_id = data['last_id']
+            self.user = RdioUser(data['user']) # public? everyone?
+            if 'updates' in data:
+                self.updates = []
+                for update in data['updates']:
+                    self.updates.append(RdioActivityItem(update))

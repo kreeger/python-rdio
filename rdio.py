@@ -34,13 +34,23 @@ import re
 import json
 import urllib
 
+from rdio_functions import derive_rdio_type_from_data, validate_email
+from rdio_functions import parse_list_to_comma_delimited_string
+from rdio_functions import parse_result_list
 from rdio_objects import *
+
+# Declare some constants and stuff
 
 root_url = 'http://api.rdio.com/1/'
 oauth_token_url = 'http://api.rdio.com/oauth/request_token'
 oauth_access_url = 'http://api.rdio.com/oauth/access_token'
 root_site_url = 'http://www.rdio.com'
 http_method = 'POST'
+rdio_activity_scopes = [
+    'user',
+    'friends',
+    'everyone',
+]
 methods = {
     'add_friend': 'addFriend',
     'add_to_collection': 'addToCollection',
@@ -73,26 +83,64 @@ methods = {
     'search_suggestions': 'searchSuggestions',
 }
 
-class ApiError(Exception):
-    """Handles exceptions around missing API arguments."""
+# Define API error handling.
+
+class RdioGenericAPIError(Exception):
+    """Handles all other unknown Rdio API errors."""
+
+    def __init__(self, method):
+        super(RdioGenericAPIError, self).__init__()
+        self.method   = method
+        print "An error occurred during method %s." % (
+            self.method,)
+
+    def __str__(self):
+        return repr("An error occurred during method %s." % (
+            self.method,))
+
+class RdioMissingArgumentError(Exception):
+    """Handles exceptions around missing arguments."""
     
-    def __init__(self, msg):
-        super(ApiError, self).__init__(msg)
-        self.msg = msg
+    def __init__(self, argument, method):
+        super(RdioMissingArgumentError, self).__init__()
+        self.argument = argument
+        self.method   = method
+        print "Method %s is missing required argument %s." % (
+            self.method, self.argument,)
     
     def __str__(self):
-        return repr(self.msg)
+        return repr("Method %s is missing required argument %s." % (
+            self.method, self.argument,))
 
 class RdioNotAuthenticatedException(Exception):
     """Handles exceptions around not being logged in."""
     
-    def __init__(self, msg):
-        super(RdioNotAuthenticatedException, self).__init__(msg)
-        print "User is not authenticated. %s cannot be called." % (msg,)
+    def __init__(self, method):
+        super(RdioNotAuthenticatedException, self).__init__()
+        self.method = method
+        print "User is not authenticated. %s cannot be called." % (
+            self.method,)
     
     def __str__(self):
         return repr("User is not authenticated. %s cannot be called." %
-            (self.msg,))
+            (self.method,))
+
+class RdioInvalidParameterException(Exception):
+    """Handles exceptions around invalid parameters being passed in."""
+
+    def __init__(self, value, param, method):
+        super(RdioInvalidParameterException, self).__init__()
+        self.value  = value
+        self.param  = param
+        self.method = method
+        print "%s is an invalid parameter for %s in method %s." % (
+            self.value, self.param, self.method,)
+
+    def __str__(self):
+        return repr("%s is an invalid parameter for %s in method %s." % (
+            self.value, self.param, self.method,))
+
+# Here's the big kahuna.
 
 class Api(object):
     """Handles communication with Rdio API."""
@@ -184,7 +232,7 @@ class Api(object):
         try:
             # If we don't have a request token yet, let the user know.
             if not self._oauth_request_token:
-                raise ApiError("Must set token first.")
+                raise RdioGenericAPIError("Must set token first.")
             # Tell the token object to get verified.
             self._oauth_request_token.set_verifier(oauth_verifier)
             # Update our client object with our private token object.
@@ -208,7 +256,7 @@ class Api(object):
                     'access_token_secret': token_secret}
             else:
                 return None
-        except ApiError as e:
+        except RdioGenericAPIError as e:
             print "API error: %s." % e.msg
     
     def add_friend(self, user):
@@ -307,7 +355,9 @@ class Api(object):
         data = {'method': methods['find_user']}
         if email:
             if validate_email(email): data['email'] = email
-            else: raise ApiError("Invalid email address: %s." % email)
+            else:
+                raise RdioInvalidParameterException(
+                    "Invalid email address: %s." % email)
         if vanity_name: data['vanityName'] = vanity_name
         result = self.call_api(data)
         
@@ -330,6 +380,35 @@ class Api(object):
         results = self.call_api(data)
         return parse_result_list(results) if results else None
     
+    def get_activity_stream(self, user, scope, last_id=None):
+        """Get the activity events for a user, a user's friends, or everyone
+        on Rdio.
+        
+        Keyword arguments:
+        user    -- the key of the user to retrieve an activity stream for.
+        scope   -- the scope of the activity stream, either "user", "friends"
+                   or "everyone".
+        last_id -- optional. the last_id returned by the last call to
+                   getActivityStream - only activity since that call will be
+                   returned.
+        
+        """
+        data = {
+            'method': methods['get_activity_stream'],
+            'user': user}
+        
+        if scope:
+            if scope not in rdio_activity_scopes:
+                raise RdioInvalidParameterException(
+                    scope, 'scope', 'get_activity_stream')
+            else: data['scope'] = scope
+        else: raise RdioMissingArgumentError('scope','get_activity_stream')
+        
+        if last_id: data['last_id'] = last_id
+        results = self.call_api(data)
+        
+        return RdioActivityStream(results) if results else None
+    
     def search(self, query, types, never_or=None, extras=None, start=None,
                count=None):
         """Search for artists, albums, tracks, users, or all kinds of
@@ -338,7 +417,7 @@ class Api(object):
         Keyword arguments:
         query    -- the search query.
         types    -- List of types to include in results. Valid values
-            are "Artist", "Album", "Track", "Playlist", and "User".
+                    are "Artist", "Album", "Track", "Playlist", and "User".
         never_or -- optional. Disables Rdio's and/or query default "and".
         extras   -- optional. A list of additional fields to return.
         start    -- optional. The offset of the first result to return.
@@ -385,46 +464,10 @@ class Api(object):
             parsed_content = json.loads(content)
             status = parsed_content['status']
             if status == 'error':
-                raise ApiError(parsed_content['message'])
+                raise RdioGenericAPIError(parsed_content['message'])
                 return None
             elif status == 'ok':
                 return parsed_content['result']
-        except (ApiError) as e:
+        except RdioGenericAPIError as e:
             print "API error: %s" % e.msg
     
-
-def validate_email(email):
-    """Validates email address. Should work for now.
-    Yanked from http://goo.gl/EuVRg
-    
-    Keyword arguments:
-    email -- the text string of an email to validate.
-    
-    """
-    if len(email) > 7:
-        if re.match("^.+\\@(\\[?)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,3}|[0-9]{1,3})(\\]?)$", email) != None:
-            return 1
-    return 0
-
-def parse_list_to_comma_delimited_string(list_object):
-    """Parses a list object into a comma-delimited string."""
-    string = ''
-    for thing in list_object:
-        string += '%s,' % thing
-    return string[:-1]
-
-def parse_result_list(results):
-    """Takes a dictionary and returns a list of RdioObjects."""
-    objects = []
-    for rdio_object in results:
-        if rdio_types[rdio_object['type']] == 'Artist':
-            objects.append(RdioArtist(rdio_object))
-        if rdio_types[rdio_object['type']] == 'Album':
-            objects.append(RdioAlbum(rdio_object))
-        if rdio_types[rdio_object['type']] == 'Track':
-            objects.append(RdioTrack(rdio_object))
-        if rdio_types[rdio_object['type']] == 'Playlist':
-            objects.append(RdioPlaylist(rdio_object))
-        if rdio_types[rdio_object['type']] == 'User':
-            objects.append(RdioUser(rdio_object))
-    return objects
