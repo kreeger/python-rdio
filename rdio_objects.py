@@ -1,4 +1,4 @@
-# Declare dictionaries of stuff
+import rdio_functions
 
 rdio_types = {
     'r': 'Artist',
@@ -125,6 +125,7 @@ class RdioUser(RdioObject):
             super(RdioUser, self).__init__(data)
             self.first_name = data['firstName']
             self.last_name = data['lastName']
+            self.name = "%s %s" % (self.first_name, self.last_name,)
             self.library_version = data['libraryVersion']
             self.gender = rdio_genders[data['gender']]
             self.user_type = data['type']
@@ -174,12 +175,15 @@ class RdioActivityItem(object):
             self.date = data['date']
             self.update_type_id = data['update_type']
             self.update_type = rdio_activity_types[data['update_type']]
+            self.albums = []
+            self.reviewed_item = None
+            self.comment = None
+            self.subject = None
             if 'albums' in data:
-                self.albums = []
                 for album in data['albums']:
                     self.albums.append(RdioAlbum(album))
             if 'reviewed_item' in data:
-                self.reviewed_item = derive_rdio_type_from_data(
+                self.reviewed_item = rdio_functions.derive_rdio_type_from_data(
                     data['reviewed_item'])
             if 'comment' in data:
                 self.comment = data['comment']

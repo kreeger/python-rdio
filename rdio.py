@@ -407,6 +407,7 @@ class Api(object):
         if last_id: data['last_id'] = last_id
         results = self.call_api(data)
         
+        print results
         return RdioActivityStream(results) if results else None
     
     def search(self, query, types, never_or=None, extras=None, start=None,
