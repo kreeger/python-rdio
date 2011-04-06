@@ -165,6 +165,7 @@ class RdioActivityItem(object):
         self.albums = []
         self.reviewed_item = None
         self.comment = ''
+        # gotta be a better way of storing the main subject object
         self.subject = None
         if 'albums' in data:
             self.albums.append(RdioAlbum(album for album in data['albums']))
