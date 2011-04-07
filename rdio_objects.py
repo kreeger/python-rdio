@@ -2,9 +2,9 @@ import rdio_functions
 
 rdio_types = {
     'r': 'artist',
-    'rl': 'artist',
+    'rl': 'collection artist',
     'a': 'album',
-    'al': 'album',
+    'al': 'collection album',
     't': 'track',
     'p': 'playlist',
     's': 'user',
