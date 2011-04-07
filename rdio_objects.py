@@ -1,30 +1,31 @@
 import rdio_functions
 
 rdio_types = {
-    'r': 'Artist',
-    'a': 'Album',
-    't': 'Track',
-    'p': 'Playlist',
-    's': 'User',
+    'r': 'artist',
+    'a': 'album',
+    't': 'track',
+    'p': 'playlist',
+    's': 'user',
 }
 
 rdio_genders = {
-    'm': 'Male',
-    'f': 'Female',
+    'm': ('male', 'his',),
+    'f': ('female', 'her',),
 }
 
 rdio_activity_types = {
-    0: 'track added to collection',
-    1: 'track added to playlist',
-    3: 'friend added',
-    5: 'user joined',
-    6: 'comment added to track',
-    7: 'comment added to album',
-    8: 'comment added to artist',
-    9: 'comment added to playlist',
-    10: 'track added via match collection',
-    11: 'user subscribed to Rdio',
-    12: 'track synced to mobile',
+    0: ('track added to collection','%s added some music to %s collection.',),
+    1: ('track added to playlist','%s added some music to a playlist.',),
+    3: ('friend added','%s added a friend.',),
+    5: ('user joined','%s joined Rdio.',),
+    6: ('comment added to track','%s commented on a track.',),
+    7: ('comment added to album','%s commented on an album.',),
+    8: ('comment added to artist','%s commented on an artist.',),
+    9: ('comment added to playlist','%s commented on a playlist.',),
+    10: ('track added via match collection',
+         '%s matched music to %s collection.',),
+    11: ('user subscribed to Rdio','%s subscribed to Rdio.',),
+    12: ('track synced to mobile','%s synced some music to %s mobile app.',),
 }
 
 # Here come the objects
@@ -119,7 +120,8 @@ class RdioUser(RdioObject):
         self.last_name = data['lastName']
         self.name = self.get_full_name()
         self.library_version = data['libraryVersion']
-        self.gender = rdio_genders[data['gender']]
+        self.gender = rdio_genders[data['gender']][0]
+        self.gender_posessive = rdio_genders[data['gender']][1]
         self.user_type = data['type']
         self.username = None
         self.last_song_played = None
@@ -143,7 +145,7 @@ class RdioUser(RdioObject):
 class RdioSearchResult(object):
     """Describes an Rdio search result and the extra fields it brings."""
     
-    def __init__(self, data, results):
+    def __init__(self, data):
         super(RdioSearchResult, self).__init__()
         self.album_count = data['album_count']
         self.artist_count = data['artist_count']
@@ -151,7 +153,7 @@ class RdioSearchResult(object):
         self.person_count = data['person_count']
         self.playlist_count = data['playlist_count']
         self.track_count = data['track_count']
-        self.results = results
+        self.results = parse_result_list(data['results'])
 
 class RdioActivityItem(object):
     """Describes an item in Rdio's history object list."""
@@ -161,20 +163,27 @@ class RdioActivityItem(object):
         self.owner = RdioUser(data['owner'])
         self.date = data['date']
         self.update_type_id = data['update_type']
-        self.update_type = rdio_activity_types[data['update_type']]
+        self.update_type = rdio_activity_types[data['update_type']][0]
+        self._verbose_type = rdio_activity_types[data['update_type']][1]
+        if self.update_type_id in (0,10,12,):
+            self.verbose_update_type = self._verbose_type % (
+                self.owner.name, self.owner.gender_posessive,)
+        else: self.verbose_update_type = self._verbose_type % self.owner.name
         self.albums = []
         self.reviewed_item = None
         self.comment = ''
         # gotta be a better way of storing the main subject object
         self.subject = None
         if 'albums' in data:
-            self.albums.append(RdioAlbum(album for album in data['albums']))
+            for album in data['albums']:
+                self.albums.append(RdioAlbum(album))
             self.subject = self.albums
         if 'reviewed_item' in data:
             self.reviewed_item = rdio_functions.derive_rdio_type_from_data(
                 data['reviewed_item'])
             self.subject = self.reviewed_item
-        if 'comment' in data: self.comment = data['comment']
+        if 'comment' in data:
+            self.comment = data['comment']
             self.subject = self.comment
 
 class RdioActivityStream(object):
@@ -186,5 +195,5 @@ class RdioActivityStream(object):
         self.user = RdioUser(data['user']) # public? everyone?
         self.updates = []
         if 'updates' in data:
-            self.updates.append(
-                RdioActivityItem(update for update in data['updates']))
+            for update in data['updates']:
+                self.updates.append(RdioActivityItem(update))

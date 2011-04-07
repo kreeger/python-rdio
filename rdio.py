@@ -36,7 +36,7 @@ import urllib
 
 from rdio_functions import derive_rdio_type_from_data, validate_email
 from rdio_functions import parse_list_to_comma_delimited_string
-from rdio_functions import parse_result_list
+from rdio_functions import parse_result_dictionary, parse_result_list
 from rdio_objects import *
 
 # Declare some constants and stuff
@@ -296,7 +296,7 @@ class Api(object):
             'keys': parse_list_to_comma_delimited_string(tracks)}
         return self.call_api_authenticated(data)
     
-    def create_playlist(self, name, description, tracks, extras=None):
+    def create_playlist(self, name, description, tracks, extras=[]):
         """Create a new playlist in the current user's collection. The new
         playlist will be returned if the creation is successful; otherwise null
         will be returned.
@@ -318,7 +318,7 @@ class Api(object):
         
         return RdioPlaylist(result) if result else None
     
-    def current_user(self, extras=None):
+    def current_user(self, extras=[]):
         """Gets information about the currently logged in user. Requires
         authentication.
         
@@ -343,7 +343,7 @@ class Api(object):
         data = {'method': methods['delete_playlist'], 'playlist': playlist}
         return self.call_api_authenticated(data)
     
-    def find_user(self, email=None, vanity_name=None):
+    def find_user(self, email='', vanity_name=''):
         """Finds an Rdio user by email or username. Exactly one of email or
         vanity_name must be supplied.
         
@@ -363,7 +363,7 @@ class Api(object):
         
         return RdioUser(result) if result else None
     
-    def get(self, keys, extras=None):
+    def get(self, keys, extras=[]):
         """Fetch one or more objects from Rdio.
         
         Keyword arguments:
@@ -378,7 +378,7 @@ class Api(object):
             data['extras'] = parse_list_to_comma_delimited_string(extras)
         
         results = self.call_api(data)
-        return parse_result_list(results) if results else None
+        return parse_result_dictionary(results) if results else None
     
     def get_activity_stream(self, user, scope, last_id=None):
         """Get the activity events for a user, a user's friends, or everyone
@@ -406,9 +406,33 @@ class Api(object):
         
         if last_id: data['last_id'] = last_id
         results = self.call_api(data)
-        
-        print results
         return RdioActivityStream(results) if results else None
+    
+    def get_albums_for_artist(self, artist, featuring=False, extras=[],
+                              start=None, count=None):
+        """Returns the albums by (or featuring) an artist.
+        
+        Keyword arguments:
+        artist      -- the key of the artist to retrieve albums for.
+        featuring   -- optional. True returns albums the artist is featured on
+                       instead of albums by ther user.
+        extras      -- optional. A list of optional fields to return.
+        start       -- optional. The offset of the first result to return.
+        count       -- optional. The maximum number of results to return.
+        
+        """
+        data = {
+            'method': methods['get_albums_for_artist'],
+            'artist': artist}
+        
+        if featuring: data['featuring'] = featuring
+        if extras:
+            data['extras'] = parse_list_to_comma_delimited_string(extras)
+        if start: data['start'] = start
+        if count: data['count'] = count
+        
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
     
     def search(self, query, types, never_or=None, extras=None, start=None,
                count=None):
@@ -434,10 +458,7 @@ class Api(object):
         if count: data['count'] = count
         
         results = self.call_api(data)
-        if results:
-            return RdioSearchResult(results,
-                                    parse_result_list(results['results']))
-        else: return None
+        return RdioSearchResult(results) if results else None
     
     def call_api_authenticated(self, data):
         """Handles checking authentication before talking to the Rdio API.

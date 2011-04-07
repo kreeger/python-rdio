@@ -2,15 +2,15 @@ from rdio_objects import rdio_types, RdioArtist, RdioAlbum, RdioTrack
 from rdio_objects import RdioPlaylist, RdioUser
 
 def derive_rdio_type_from_data(rdio_object):
-    if rdio_types[rdio_object['type']] == 'Artist':
+    if rdio_types[rdio_object['type']] == 'artist':
         return RdioArtist(rdio_object)
-    if rdio_types[rdio_object['type']] == 'Album':
+    if rdio_types[rdio_object['type']] == 'album':
         return RdioAlbum(rdio_object)
-    if rdio_types[rdio_object['type']] == 'Track':
+    if rdio_types[rdio_object['type']] == 'track':
         return RdioTrack(rdio_object)
-    if rdio_types[rdio_object['type']] == 'Playlist':
+    if rdio_types[rdio_object['type']] == 'playlist':
         return RdioPlaylist(rdio_object)
-    if rdio_types[rdio_object['type']] == 'User':
+    if rdio_types[rdio_object['type']] == 'user':
         return RdioUser(rdio_object)
 
 def validate_email(email):
@@ -33,8 +33,15 @@ def parse_list_to_comma_delimited_string(list_object):
         string += '%s,' % thing
     return string[:-1]
 
-def parse_result_list(results):
+def parse_result_dictionary(results):
     """Takes a dictionary and returns a list of RdioObjects."""
+    objects = []
+    for rdio_object in results:
+        objects.append(derive_rdio_type_from_data(results[rdio_object]))
+    return objects
+
+def parse_result_list(results):
+    """Takes a list and returns a list of RdioObjects."""
     objects = []
     for rdio_object in results:
         objects.append(derive_rdio_type_from_data(rdio_object))
