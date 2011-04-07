@@ -46,11 +46,17 @@ oauth_token_url = 'http://api.rdio.com/oauth/request_token'
 oauth_access_url = 'http://api.rdio.com/oauth/access_token'
 root_site_url = 'http://www.rdio.com'
 http_method = 'POST'
-rdio_activity_scopes = [
+rdio_activity_scopes = (
     'user',
     'friends',
     'everyone',
-]
+)
+rdio_sort_types = (
+    'dateAdded',
+    'playCount',
+    'artist',
+    'name',
+)
 methods = {
     'add_friend': 'addFriend',
     'add_to_collection': 'addToCollection',
@@ -398,10 +404,10 @@ class Api(object):
             'user': user}
         
         if scope:
-            if scope not in rdio_activity_scopes:
+            if scope in rdio_activity_scopes: data['scope'] = scope
+            else:
                 raise RdioInvalidParameterException(
                     scope, 'scope', 'get_activity_stream')
-            else: data['scope'] = scope
         else: raise RdioMissingArgumentError('scope','get_activity_stream')
         
         if last_id: data['last_id'] = last_id
@@ -434,6 +440,138 @@ class Api(object):
         results = self.call_api(data)
         return parse_result_list(results) if results else None
     
+    def get_albums_for_artist_in_collection(self, artist, user=None):
+        """Returns the albums by an artist in a user's collection.
+
+        Keyword arguments:
+        artist  -- the key of the artist to retrieve albums for.
+        user    -- optional. The owner of the collection to search.
+
+        """
+        data = {
+            'method': methods['get_albums_for_artist_in_collection'],
+            'artist': artist}
+
+        if user: data['user'] = user
+        
+        if user: results = self.call_api(data)
+        else: results = self.call_api_authenticated(data)
+        return parse_result_list(results) if results else None
+    
+    def get_albums_in_collection(self, user=None, start=None, count=None,
+                                 sort=None, query=None):
+        """Returns the albums in a user's collection.
+        
+        Keyword arguments:
+        user    -- optional. The owner of the collection to search.
+        start   -- optional. The offset of the first result to return.
+        count   -- optional. The maximum number of results to return.
+        sort    -- optional. Ways to sort the results. Valid options are
+                   'dateAdded', 'playCount', 'artist', and 'name'.
+        query   -- optional. The query to filter albums with.
+        
+        """
+        data = {'method': methods['get_albums_in_collection']}
+        
+        if user: data['user'] = user
+        if start: data['start'] = start
+        if count: data['count'] = count
+        if sort:
+            if sort in rdio_sort_types: data['sort'] = sort
+            else:
+                raise RdioInvalidParameterException(
+                    sort, 'sort', 'get_albums_in_collection')
+        if query: data['query'] = query
+        
+        if user: results = self.call_api(data)
+        else: results = self.call_api_authenticated(data)
+        return parse_result_list(results) if results else None
+    
+    def get_artists_in_collection(self, user=None, start=None, count=None,
+                                  sort=None, query=None):
+        """Returns the albums in a user's collection.
+
+        Keyword arguments:
+        user    -- optional. The owner of the collection to search.
+        start   -- optional. The offset of the first result to return.
+        count   -- optional. The maximum number of results to return.
+        sort    -- optional. Ways to sort the results. Valid option is
+                   'name' only.
+        query   -- optional. The query to filter artists with.
+
+        """
+        data = {'method': methods['get_artists_in_collection']}
+
+        if user: data['user'] = user
+        if start: data['start'] = start
+        if count: data['count'] = count
+        if sort:
+            if sort == 'name': data['sort'] = sort
+            else:
+                raise RdioInvalidParameterException(
+                    sort, 'sort', 'get_artists_in_collection')
+        if query: data['query'] = query
+        
+        if user: results = self.call_api(data)
+        else: results = self.call_api_authenticated(data)
+        return parse_result_list(results) if results else None
+    
+    def get_heavy_rotation(self, user=None, object_type=None, friends=False,
+                           limit=None):
+       """Finds the most popular artists or albums for a user, their friends,
+       or the whole site.
+
+       Keyword arguments:
+       user    -- optional. The user to get heavy rotation for, or if this is
+                  missing, everyone.
+       type    -- optional. Values are "artists" or "albums".
+       friends -- optional. If True, gets the user's friend's heavy rotation
+                  instead of the user's.
+       limit   -- optional. The maximum number of results to return.
+
+       """
+       data = {'method': methods['get_heavy_rotation']}
+
+       if user: data['user'] = user
+       if object_type:
+           if object_type in ('artists','albums',):
+               data['type'] = object_type
+           else:
+               raise RdioInvalidParameterException(
+                   object_type, 'type', 'get_heavy_rotation')
+       if friends: data['friends'] = friends
+       if limit: data['limit'] = limit
+       
+       results = self.call_api(data)
+       return parse_result_list(results) if results else None
+    
+    def get_new_releases(self, time=None, start=None, count=False,
+                         extras=[]):
+        """Returns new albums released across a timeframe.
+        
+        Keyword arguments:
+        time     -- optional. Timeframe, either 'thisweek', 'lastweek', or
+                    'twoweeks'.
+        start    -- optional. The offset of the first result to return.
+        count    -- optional. The maximum number of results to return.
+        extras   -- optional. A list of additional fields to return.
+        
+        """
+        data = {'method': methods['get_new_releases']}
+        
+        if time:
+            if time in rdio_timeframes: data['time'] = time
+            else:
+                raise RdioInvalidParameterException(
+                    time, 'time', 'get_new_releases')
+        if start: data['start'] = start
+        if count: data['count'] = count
+        if extras:
+            data['extras'] = parse_list_to_comma_delimited_string(extras)
+        
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
+
     def search(self, query, types, never_or=None, extras=None, start=None,
                count=None):
         """Search for artists, albums, tracks, users, or all kinds of

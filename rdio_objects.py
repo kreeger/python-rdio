@@ -2,7 +2,9 @@ import rdio_functions
 
 rdio_types = {
     'r': 'artist',
+    'rl': 'artist',
     'a': 'album',
+    'al': 'album',
     't': 'track',
     'p': 'playlist',
     's': 'user',
@@ -51,7 +53,9 @@ class RdioArtist(RdioObject):
         self.has_radio = data['hasRadio']
         self.short_url = data['shortUrl']
         self.album_count = -1
+        self.hits = None
         if 'albumCount' in data: self.album_count = data['albumCount']
+        if 'hits' in data: self.hits = data['hits']
 
 class RdioMusicObject(RdioObject):
     """Describes an Rdio music object."""
@@ -80,9 +84,11 @@ class RdioAlbum(RdioMusicObject):
         self.release_date = data['displayDate']
         self.track_keys = []
         self.release_date_iso = None
+        self.hits = None
         if 'trackKeys' in data: self.track_keys = data['trackKeys']
         if 'releaseDateISO' in data:
             self.release_date_iso = data['releaseDateISO']
+        if 'hits' in data: self.hits = data['hits']
 
 class RdioTrack(RdioMusicObject):
     """Describes an Rdio track."""
