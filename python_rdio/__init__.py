@@ -32,10 +32,7 @@ import inspect
 import oauth2 as oauth
 import json
 import urllib
-
-from rdio_functions import derive_rdio_type_from_data, validate_email
-from rdio_functions import parse_result_dictionary, parse_result_list
-from rdio_objects import *
+import re
 
 # Declare some constants and stuff
 
@@ -44,6 +41,33 @@ oauth_token_url = 'http://api.rdio.com/oauth/request_token'
 oauth_access_url = 'http://api.rdio.com/oauth/access_token'
 root_site_url = 'http://www.rdio.com'
 http_method = 'POST'
+rdio_types = {
+    'r': 'artist',
+    'rl': 'collection artist',
+    'a': 'album',
+    'al': 'collection album',
+    't': 'track',
+    'p': 'playlist',
+    's': 'user',
+}
+rdio_genders = {
+    'm': ('male', 'his',),
+    'f': ('female', 'her',),
+}
+rdio_activity_types = {
+    0: ('track added to collection','%s added some music to %s collection.',),
+    1: ('track added to playlist','%s added some music to a playlist.',),
+    3: ('friend added','%s added a friend.',),
+    5: ('user joined','%s joined Rdio.',),
+    6: ('comment added to track','%s commented on a track.',),
+    7: ('comment added to album','%s commented on an album.',),
+    8: ('comment added to artist','%s commented on an artist.',),
+    9: ('comment added to playlist','%s commented on a playlist.',),
+    10: ('track added via match collection',
+         '%s matched music to %s collection.',),
+    11: ('user subscribed to Rdio','%s subscribed to Rdio.',),
+    12: ('track synced to mobile','%s synced some music to %s mobile app.',),
+}
 methods = {
     'add_friend': 'addFriend',
     'add_to_collection': 'addToCollection',
@@ -77,10 +101,9 @@ methods = {
 }
 
 # Define API error handling.
-
 class RdioGenericAPIError(Exception):
     """Handles all other unknown Rdio API errors."""
-
+    
     def __init__(self, method):
         super(RdioGenericAPIError, self).__init__()
         self.method   = method
@@ -116,7 +139,7 @@ class RdioNotAuthenticatedException(Exception):
 
 class RdioInvalidParameterException(Exception):
     """Handles exceptions around invalid parameters being passed in."""
-
+    
     def __init__(self, value, param, method):
         super(RdioInvalidParameterException, self).__init__()
         self.value  = value
@@ -124,13 +147,208 @@ class RdioInvalidParameterException(Exception):
         self.method = method
         print "%s is an invalid parameter for %s in method %s." % (
             self.value, self.param, self.method,)
-
+    
     def __str__(self):
         return repr("%s is an invalid parameter for %s in method %s." % (
             self.value, self.param, self.method,))
 
-# Here's the big kahuna.
+# Define objects.
+class JSONBasedObject(object):
+    """Describeds a JSON based object (keeps data)."""
+    
+    def __init__(self, data):
+        super(JSONBasedObject, self).__init__()
+        self._data = data
 
+class RdioObject(JSONBasedObject):
+    """Describes common fields a base Rdio object will have."""
+    
+    def __init__(self, data):
+        super(RdioObject, self).__init__(data)
+        self.key = data['key']
+        self.url = data['url']
+        self.icon = data['icon']
+        self.base_icon = data['baseIcon']
+        self.rdio_type = rdio_types[data['type']]
+
+class RdioArtist(RdioObject):
+    """Describes an Rdio artist."""
+    
+    def __init__(self, data):
+        super(RdioArtist, self).__init__(data)
+        self.name = data['name']
+        self.track_count = data['length']
+        self.has_radio = data['hasRadio']
+        self.short_url = data['shortUrl']
+        self.album_count = -1
+        self.hits = None
+        if 'albumCount' in data: self.album_count = data['albumCount']
+        if 'hits' in data: self.hits = data['hits']
+
+class RdioMusicObject(RdioObject):
+    """Describes an Rdio music object."""
+    
+    def __init__(self, data):
+        super(RdioMusicObject, self).__init__(data)
+        self.name = data['name']
+        self.artist_name = data['artist']
+        self.artist_url = data['artistUrl']
+        self.artist_key = data['artistKey']
+        self.is_explicit = data['isExplicit']
+        self.is_clean = data['isClean']
+        self.price = data['price']
+        self.can_stream = data['canStream']
+        self.can_sample = data['canSample']
+        self.can_tether = data['canTether']
+        self.short_url = data['shortUrl']
+        self.embed_url = data['embedUrl']
+        self.duration = data['duration']
+
+class RdioAlbum(RdioMusicObject):
+    """Describes an Rdio album."""
+    
+    def __init__(self, data):
+        super(RdioAlbum, self).__init__(data)
+        self.release_date = data['displayDate']
+        self.track_keys = []
+        self.release_date_iso = None
+        self.hits = None
+        if 'trackKeys' in data: self.track_keys = data['trackKeys']
+        if 'releaseDateISO' in data:
+            self.release_date_iso = data['releaseDateISO']
+        if 'hits' in data: self.hits = data['hits']
+
+class RdioTrack(RdioMusicObject):
+    """Describes an Rdio track."""
+    
+    def __init__(self, data):
+        super(RdioTrack, self).__init__(data)
+        self.album_name = data['album']
+        self.album_key = data['albumKey']
+        self.album_url = data['albumUrl']
+        self.album_artist_name = data['albumArtist']
+        self.album_artist_key = data['albumArtistKey']
+        self.can_download = data['canDownload']
+        self.can_download_album_only = data['canDownloadAlbumOnly']
+        self.play_count = -1
+        self.track_number = -1
+        if 'trackNum' in data: self.track_number = data['trackNum']
+        if 'playCount' in data: self.play_count = data['playCount']
+
+class RdioPlaylist(RdioObject):
+    """Describes an Rdio playlist."""
+    
+    def __init__(self, data):
+        super(RdioPlaylist, self).__init__(data)
+        self.name = data['name']
+        self.track_count = data['length']
+        self.owner_name = data['owner']
+        self.owner_url = data['ownerUrl']
+        self.owner_key = data['ownerKey']
+        self.owner_icon = data['ownerIcon']
+        self.last_updated = data['lastUpdated']
+        self.short_url = data['shortUrl']
+        self.embed_url = data['embedUrl']
+        self.track_keys = []
+        if 'trackKeys' in data: self.track_keys = data['trackKeys']
+
+class RdioUser(RdioObject):
+    """Describes an Rdio user."""
+    
+    def __init__(self, data):
+        super(RdioUser, self).__init__(data)
+        self.first_name = data['firstName']
+        self.last_name = data['lastName']
+        self.name = self.get_full_name()
+        self.library_version = data['libraryVersion']
+        self.gender = rdio_genders[data['gender']][0]
+        self.gender_posessive = rdio_genders[data['gender']][1]
+        self.user_type = data['type']
+        self.username = None
+        self.last_song_played = None
+        self.display_name = None
+        self.track_count = None
+        self.last_song_play_time = None
+        if 'username' in data: self.username = data['username']
+        if 'lastSongPlayed' in data:
+            self.last_song_played = data['lastSongPlayed']
+        if 'displayName' in data: self.display_name = data['displayName']
+        if 'trackCount' in data: self.track_count = data['trackCount']
+        if 'lastSongPlayTime' in data:
+            self.last_song_play_time = data['lastSongPlayTime']
+    
+    def get_full_url(self):
+        return root_site_url + self.url
+    
+    def get_full_name(self):
+        return "%s %s" % (self.first_name, self.last_name,)
+
+class RdioSearchResult(JSONBasedObject):
+    """Describes an Rdio search result and the extra fields it brings."""
+    
+    def __init__(self, data):
+        super(RdioSearchResult, self).__init__(data)
+        self.album_count = data['album_count']
+        self.artist_count = data['artist_count']
+        self.number_results = data['number_results']
+        self.person_count = data['person_count']
+        self.playlist_count = data['playlist_count']
+        self.track_count = data['track_count']
+        self.results = parse_result_list(data['results'])
+
+class RdioActivityItem(JSONBasedObject):
+    """Describes an item in Rdio's history object list."""
+    
+    def __init__(self, data):
+        super(RdioActivityItem, self).__init__(data)
+        self.owner = RdioUser(data['owner'])
+        self.date = data['date']
+        self.update_type_id = data['update_type']
+        self.update_type = rdio_activity_types[data['update_type']][0]
+        self._verbose_type = rdio_activity_types[data['update_type']][1]
+        if self.update_type_id in (0,10,12,):
+            self.verbose_update_type = self._verbose_type % (
+                self.owner.name, self.owner.gender_posessive,)
+        else: self.verbose_update_type = self._verbose_type % self.owner.name
+        self.albums = []
+        self.reviewed_item = None
+        self.comment = ''
+        # gotta be a better way of storing the main subject object
+        self.subject = None
+        if 'albums' in data:
+            for album in data['albums']:
+                self.albums.append(RdioAlbum(album))
+            self.subject = self.albums
+        if 'reviewed_item' in data:
+            self.reviewed_item = derive_rdio_type_from_data(
+                data['reviewed_item'])
+            self.subject = self.reviewed_item
+        if 'comment' in data:
+            self.comment = data['comment']
+            self.subject = self.comment
+
+class RdioActivityStream(JSONBasedObject):
+    """Describes a stream of history for a user, for public, etc."""
+    
+    def __init__(self, data):
+        super(RdioActivityStream, self).__init__(data)
+        self.last_id = data['last_id']
+        self.user = RdioUser(data['user']) # public? everyone?
+        self.updates = []
+        if 'updates' in data:
+            for update in data['updates']:
+                self.updates.append(RdioActivityItem(update))
+
+class RdioPlaylistSet(JSONBasedObject):
+    """Describes a set of playlists, owned, collaborated, and subscribed."""
+    
+    def __init__(self, data):
+        super(RdioPlaylistSet, self).__init__(data)
+        self.owned_playlists = parse_result_list(data['owned'])
+        self.collaborated_playlists = parse_result_list(data['collab'])
+        self.subscribed_playlists = parse_result_list(data['subscribed'])
+
+# Here's the big kahuna.
 class Api(object):
     """Handles communication with Rdio API."""
     
@@ -816,3 +1034,38 @@ class Api(object):
         results = self.call_api(data)
         return parse_result_list(results) if results else None
     
+def derive_rdio_type_from_data(rdio_object):
+    if rdio_types[rdio_object['type']] == 'artist':
+        return RdioArtist(rdio_object)
+    if rdio_types[rdio_object['type']] == 'album':
+        return RdioAlbum(rdio_object)
+    if rdio_types[rdio_object['type']] == 'track':
+        return RdioTrack(rdio_object)
+    if rdio_types[rdio_object['type']] == 'playlist':
+        return RdioPlaylist(rdio_object)
+    if rdio_types[rdio_object['type']] == 'user':
+        return RdioUser(rdio_object)
+
+def validate_email(email):
+    """Validates email address. Should work for now.
+    From http://goo.gl/EuVRg.
+
+    """
+    if len(email) > 7:
+        if re.match("^.+\\@(\\[?)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,3}|[0-9]{1,3})(\\]?)$", email) != None:
+            return 1
+    return 0
+
+def parse_result_dictionary(results):
+    """Takes a dictionary and returns a list of RdioObjects."""
+    objects = []
+    for rdio_object in results:
+        objects.append(derive_rdio_type_from_data(results[rdio_object]))
+    return objects
+
+def parse_result_list(results):
+    """Takes a list and returns a list of RdioObjects."""
+    objects = []
+    for rdio_object in results:
+        objects.append(derive_rdio_type_from_data(rdio_object))
+    return objects
