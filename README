@@ -1,9 +1,9 @@
-Another Python library for accessing the Rdio API, using OAuth. Inspired
+An unofficial Python library for accessing the Rdio API, using OAuth. Inspired
 by Rdio's own 'rdio-python' library as well as python-twitter.
 
 To use, do:
 
 > import rdio
 > rdio_manager = rdio.Api(CONSUMER_KEY, CONSUMER_SECRET)
-> user = rdio_manager.get_user('benjaminkreeger@gmail.com')
+> user = rdio_manager.find_user('benjaminkreeger@gmail.com')
 > print '%s %s's key is: %s.' % (user.first_name, user.last_name, user.key)

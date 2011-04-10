@@ -32,11 +32,18 @@ rdio_activity_types = {
 
 # Here come the objects
 
-class RdioObject(object):
+class JSONBasedObject(object):
+    """Describeds a JSON based object (keeps data)."""
+    
+    def __init__(self, data):
+        super(JSONBasedObject, self).__init__()
+        self._data = data
+
+class RdioObject(JSONBasedObject):
     """Describes common fields a base Rdio object will have."""
     
     def __init__(self, data):
-        self._data = data
+        super(RdioObject, self).__init__(data)
         self.key = data['key']
         self.url = data['url']
         self.icon = data['icon']
@@ -95,11 +102,16 @@ class RdioTrack(RdioMusicObject):
     
     def __init__(self, data):
         super(RdioTrack, self).__init__(data)
+        self.album_name = data['album']
+        self.album_key = data['albumKey']
+        self.album_url = data['albumUrl']
         self.album_artist_name = data['albumArtist']
         self.album_artist_key = data['albumArtistKey']
         self.can_download = data['canDownload']
         self.can_download_album_only = data['canDownloadAlbumOnly']
         self.play_count = -1
+        self.track_number = -1
+        if 'trackNum' in data: self.track_number = data['trackNum']
         if 'playCount' in data: self.play_count = data['playCount']
 
 class RdioPlaylist(RdioObject):
@@ -116,6 +128,8 @@ class RdioPlaylist(RdioObject):
         self.last_updated = data['lastUpdated']
         self.short_url = data['shortUrl']
         self.embed_url = data['embedUrl']
+        self.track_keys = []
+        if 'trackKeys' in data: self.track_keys = data['trackKeys']
 
 class RdioUser(RdioObject):
     """Describes an Rdio user."""
@@ -148,24 +162,24 @@ class RdioUser(RdioObject):
     def get_full_name(self):
         return "%s %s" % (self.first_name, self.last_name,)
 
-class RdioSearchResult(object):
+class RdioSearchResult(JSONBasedObject):
     """Describes an Rdio search result and the extra fields it brings."""
     
     def __init__(self, data):
-        super(RdioSearchResult, self).__init__()
+        super(RdioSearchResult, self).__init__(data)
         self.album_count = data['album_count']
         self.artist_count = data['artist_count']
         self.number_results = data['number_results']
         self.person_count = data['person_count']
         self.playlist_count = data['playlist_count']
         self.track_count = data['track_count']
-        self.results = parse_result_list(data['results'])
+        self.results = rdio_functions.parse_result_list(data['results'])
 
-class RdioActivityItem(object):
+class RdioActivityItem(JSONBasedObject):
     """Describes an item in Rdio's history object list."""
     
     def __init__(self, data):
-        super(RdioActivityItem, self).__init__()
+        super(RdioActivityItem, self).__init__(data)
         self.owner = RdioUser(data['owner'])
         self.date = data['date']
         self.update_type_id = data['update_type']
@@ -192,14 +206,27 @@ class RdioActivityItem(object):
             self.comment = data['comment']
             self.subject = self.comment
 
-class RdioActivityStream(object):
+class RdioActivityStream(JSONBasedObject):
     """Describes a stream of history for a user, for public, etc."""
     
     def __init__(self, data):
-        super(RdioActivityStream, self).__init__()
+        super(RdioActivityStream, self).__init__(data)
         self.last_id = data['last_id']
         self.user = RdioUser(data['user']) # public? everyone?
         self.updates = []
         if 'updates' in data:
             for update in data['updates']:
                 self.updates.append(RdioActivityItem(update))
+
+class RdioPlaylistSet(JSONBasedObject):
+    """Describes a set of playlists, owned, collaborated, and subscribed."""
+    
+    def __init__(self, data):
+        super(RdioPlaylistSet, self).__init__(data)
+        self.owned_playlists = rdio_functions.parse_result_list(
+            data['owned'])
+        self.collaborated_playlists = rdio_functions.parse_result_list(
+            data['collab'])
+        self.subscribed_playlists = rdio_functions.parse_result_list(
+            data['subscribed'])
+    

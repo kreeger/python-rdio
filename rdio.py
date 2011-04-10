@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # The MIT License
 # 
@@ -30,12 +30,10 @@ __version__ = '0.2'
 import cgi
 import inspect
 import oauth2 as oauth
-import re
 import json
 import urllib
 
 from rdio_functions import derive_rdio_type_from_data, validate_email
-from rdio_functions import parse_list_to_comma_delimited_string
 from rdio_functions import parse_result_dictionary, parse_result_list
 from rdio_objects import *
 
@@ -46,17 +44,6 @@ oauth_token_url = 'http://api.rdio.com/oauth/request_token'
 oauth_access_url = 'http://api.rdio.com/oauth/access_token'
 root_site_url = 'http://www.rdio.com'
 http_method = 'POST'
-rdio_activity_scopes = (
-    'user',
-    'friends',
-    'everyone',
-)
-rdio_sort_types = (
-    'dateAdded',
-    'playCount',
-    'artist',
-    'name',
-)
 methods = {
     'add_friend': 'addFriend',
     'add_to_collection': 'addToCollection',
@@ -97,12 +84,8 @@ class RdioGenericAPIError(Exception):
     def __init__(self, method):
         super(RdioGenericAPIError, self).__init__()
         self.method   = method
-        print "An error occurred during method %s." % (
+        print "An error occurred: %s." % (
             self.method,)
-
-    def __str__(self):
-        return repr("An error occurred during method %s." % (
-            self.method,))
 
 class RdioMissingArgumentError(Exception):
     """Handles exceptions around missing arguments."""
@@ -163,7 +146,6 @@ class Api(object):
         consumer_secret     -- The oAuth API secret for the application.
         access_token_key    -- The oAuth user's token key.
         access_token_secret -- The oAuth user's token secret.
-        
         
         """
         # The only thing to do right now is to set credentials.
@@ -265,6 +247,35 @@ class Api(object):
         except RdioGenericAPIError as e:
             print "API error: %s." % e.msg
     
+    def call_api_authenticated(self, data):
+        """Handles checking authentication before talking to the Rdio API.
+
+        Keyword arguments:
+        data -- the dictionary of data for the call, including 'method' param.
+
+        """
+        if not self._oauth_access_token:
+            raise RdioNotAuthenticatedException(data['method'])
+        else: return self.call_api(data)
+
+    def call_api(self, data):
+        """Calls the Rdio API. Responsible for handling errors from the API.
+
+        Keyword arguments:
+        data -- the dictionary of data for the call, including 'method' param.
+
+        """
+        data = urllib.urlencode(data)
+        response, content = self._oauth_client.request(root_url,
+                                                       http_method, data)
+        parsed_content = json.loads(content)
+        status = parsed_content['status']
+        if status == 'error':
+            raise RdioGenericAPIError(parsed_content['message'])
+            return None
+        elif status == 'ok':
+            return parsed_content['result']
+
     def add_friend(self, user):
         """Add a friend to the current user. Returns True if the add succeeds,
         and False if it fails. Requires authentication.
@@ -274,6 +285,7 @@ class Api(object):
         
         """
         data = {'method': methods['add_friend'], 'user': user}
+        
         return self.call_api_authenticated(data)
     
     def add_to_collection(self, keys):
@@ -283,9 +295,8 @@ class Api(object):
         keys -- a list of tracks or playlists to add to the user's collection.
         
         """
-        data = {
-            'method': methods['add_to_collection'],
-            'keys': parse_list_to_comma_delimited_string(keys)}
+        data = {'method': methods['add_to_collection'], 'keys': ','.join(keys)}
+        
         return self.call_api_authenticated(data)
     
     def add_to_playlist(self, playlist, tracks):
@@ -299,7 +310,8 @@ class Api(object):
         data = {
             'method': methods['add_to_playlist'],
             'playlist': playlist,
-            'keys': parse_list_to_comma_delimited_string(tracks)}
+            'keys': ','.join(tracks)}
+        
         return self.call_api_authenticated(data)
     
     def create_playlist(self, name, description, tracks, extras=[]):
@@ -317,9 +329,9 @@ class Api(object):
             'method': methods['create_playlist'],
             'name': name,
             'description': description,
-            'tracks': parse_list_to_comma_delimited_string(tracks)}
-        if extras:
-            data['extras'] = parse_list_to_comma_delimited_string(extras)
+            'tracks': ','.join(tracks)}
+            
+        if extras: data['extras'] = ','.join(extras)
         result = self.call_api_authenticated(data)
         
         return RdioPlaylist(result) if result else None
@@ -333,10 +345,9 @@ class Api(object):
         
         """
         data = {'method': methods['current_user']}
-        if extras:
-            data['extras'] = parse_list_to_comma_delimited_string(extras)
-        result = self.call_api_authenticated(data)
         
+        if extras: data['extras'] = ','.join(extras)
+        result = self.call_api_authenticated(data)
         return RdioUser(result) if result else None
     
     def delete_playlist(self, playlist):
@@ -347,9 +358,10 @@ class Api(object):
         
         """
         data = {'method': methods['delete_playlist'], 'playlist': playlist}
+        
         return self.call_api_authenticated(data)
     
-    def find_user(self, email='', vanity_name=''):
+    def find_user(self, email=None, vanity_name=None):
         """Finds an Rdio user by email or username. Exactly one of email or
         vanity_name must be supplied.
         
@@ -359,14 +371,13 @@ class Api(object):
         
         """
         data = {'method': methods['find_user']}
+        
         if email:
             if validate_email(email): data['email'] = email
-            else:
-                raise RdioInvalidParameterException(
-                    "Invalid email address: %s." % email)
+            else: raise RdioInvalidParameterException(
+                "Invalid email address: %s." % email)
         if vanity_name: data['vanityName'] = vanity_name
         result = self.call_api(data)
-        
         return RdioUser(result) if result else None
     
     def get(self, keys, extras=[]):
@@ -377,12 +388,9 @@ class Api(object):
         extras -- optional. A list of additional fields to return.
         
         """
-        data = {
-            'method': methods['get'],
-            'keys': parse_list_to_comma_delimited_string(keys)}
-        if extras:
-            data['extras'] = parse_list_to_comma_delimited_string(extras)
-        
+        data = {'method': methods['get'], 'keys': ','.join(keys)}
+            
+        if extras: data['extras'] = ','.join(extras)
         results = self.call_api(data)
         return parse_result_dictionary(results) if results else None
     
@@ -399,17 +407,14 @@ class Api(object):
                    returned.
         
         """
-        data = {
-            'method': methods['get_activity_stream'],
-            'user': user}
+        data = {'method': methods['get_activity_stream'], 'user': user}
         
         if scope:
-            if scope in rdio_activity_scopes: data['scope'] = scope
-            else:
-                raise RdioInvalidParameterException(
-                    scope, 'scope', 'get_activity_stream')
+            if scope in ('user','friends','everyone',):
+                data['scope'] = scope
+            else: raise RdioInvalidParameterException(
+                scope, 'scope', 'get_activity_stream')
         else: raise RdioMissingArgumentError('scope','get_activity_stream')
-        
         if last_id: data['last_id'] = last_id
         results = self.call_api(data)
         return RdioActivityStream(results) if results else None
@@ -427,16 +432,12 @@ class Api(object):
         count       -- optional. The maximum number of results to return.
         
         """
-        data = {
-            'method': methods['get_albums_for_artist'],
-            'artist': artist}
+        data = {'method': methods['get_albums_for_artist'], 'artist': artist}
         
         if featuring: data['featuring'] = featuring
-        if extras:
-            data['extras'] = parse_list_to_comma_delimited_string(extras)
+        if extras: data['extras'] = ','.join(extras)
         if start: data['start'] = start
         if count: data['count'] = count
-        
         results = self.call_api(data)
         return parse_result_list(results) if results else None
     
@@ -451,7 +452,7 @@ class Api(object):
         data = {
             'method': methods['get_albums_for_artist_in_collection'],
             'artist': artist}
-
+        
         if user: data['user'] = user
         
         if user: results = self.call_api(data)
@@ -477,12 +478,11 @@ class Api(object):
         if start: data['start'] = start
         if count: data['count'] = count
         if sort:
-            if sort in rdio_sort_types: data['sort'] = sort
-            else:
-                raise RdioInvalidParameterException(
-                    sort, 'sort', 'get_albums_in_collection')
+            if sort in ('dateAdded','playCount','artist','name',):
+                data['sort'] = sort
+            else: raise RdioInvalidParameterException(
+                sort, 'sort', 'get_albums_in_collection')
         if query: data['query'] = query
-        
         if user: results = self.call_api(data)
         else: results = self.call_api_authenticated(data)
         return parse_result_list(results) if results else None
@@ -498,20 +498,19 @@ class Api(object):
         sort    -- optional. Ways to sort the results. Valid option is
                    'name' only.
         query   -- optional. The query to filter artists with.
-
+        
         """
         data = {'method': methods['get_artists_in_collection']}
-
+        
         if user: data['user'] = user
         if start: data['start'] = start
         if count: data['count'] = count
         if sort:
-            if sort == 'name': data['sort'] = sort
-            else:
-                raise RdioInvalidParameterException(
-                    sort, 'sort', 'get_artists_in_collection')
+            if sort in ('name',):
+                data['sort'] = sort
+            else: raise RdioInvalidParameterException(
+                sort, 'sort', 'get_artists_in_collection')
         if query: data['query'] = query
-        
         if user: results = self.call_api(data)
         else: results = self.call_api_authenticated(data)
         return parse_result_list(results) if results else None
@@ -520,28 +519,26 @@ class Api(object):
                            limit=None):
        """Finds the most popular artists or albums for a user, their friends,
        or the whole site.
-
+       
        Keyword arguments:
-       user    -- optional. The user to get heavy rotation for, or if this is
-                  missing, everyone.
-       type    -- optional. Values are "artists" or "albums".
-       friends -- optional. If True, gets the user's friend's heavy rotation
-                  instead of the user's.
-       limit   -- optional. The maximum number of results to return.
-
+       user        -- optional. The user to get heavy rotation for, or if this
+                      is missing, everyone.
+       object_type -- optional. Values are "artists" or "albums".
+       friends     -- optional. If True, gets the user's friend's heavy
+                      rotation instead of the user's.
+       limit       -- optional. The maximum number of results to return.
+       
        """
        data = {'method': methods['get_heavy_rotation']}
-
+       
        if user: data['user'] = user
        if object_type:
            if object_type in ('artists','albums',):
                data['type'] = object_type
-           else:
-               raise RdioInvalidParameterException(
-                   object_type, 'type', 'get_heavy_rotation')
+           else: raise RdioInvalidParameterException(
+               object_type, 'type', 'get_heavy_rotation')
        if friends: data['friends'] = friends
        if limit: data['limit'] = limit
-       
        results = self.call_api(data)
        return parse_result_list(results) if results else None
     
@@ -560,19 +557,224 @@ class Api(object):
         data = {'method': methods['get_new_releases']}
         
         if time:
-            if time in rdio_timeframes: data['time'] = time
-            else:
-                raise RdioInvalidParameterException(
-                    time, 'time', 'get_new_releases')
+            if time in ('thisweek','lastweek','twoweeks',):
+                data['time'] = time
+            else: raise RdioInvalidParameterException(
+                time, 'time', 'get_new_releases')
         if start: data['start'] = start
         if count: data['count'] = count
-        if extras:
-            data['extras'] = parse_list_to_comma_delimited_string(extras)
-        
+        if extras: data['extras'] = ','.join(extras)
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-
-    def search(self, query, types, never_or=None, extras=None, start=None,
+    
+    def get_object_from_short_code(self, short_code):
+        """Returns the object that the supplied Rdio short-code is a
+        representation of, or None if the short-code is invalid.
+        
+        Keyword arguments:
+        short_code -- the short-code (everything after http://rd.io/x/).
+        
+        """
+        data = {
+            'method': methods['get_object_from_short_code'],
+            'short_code': short_code}
+        
+        result = self.call_api_authenticated(data)
+        return derive_rdio_type_from_data(result) if result else None
+    
+    def get_object_from_url(self, url):
+        """Return the object that the supplied Rdio short-code is a
+        representation of, or null if the short-code is invalid.
+        
+        Keyword arguments:
+        url -- the path portion of the url, including first slash.
+        
+        """
+        data = {'method': methods['get_object_from_url'], 'url': url}
+        result = self.call_api_authenticated(data)
+        return derive_rdio_type_from_data(result) if result else None
+    
+    def get_playback_token(self, domain=None):
+        """Get a playback token. If you are using this for web playback, you
+        must supply a domain.
+        
+        Keyword arguments:
+        domain -- optional. The domain in which the playback SWF will be
+                  embedded.
+        
+        """
+        data = {'method': methods['get_playback_token']}
+        if domain: data['domain'] = domain
+        result = self.call_api(data)
+        return result if result else None
+    
+    def get_playlists(self, extras=[]):
+        """Get the current user's playlists.
+        
+        Keyword arguments:
+        extras -- optional. A list of additional fields to return.
+        
+        """
+        data = {'method': methods['get_playlists']}
+        if extras: data['extras'] = ','.join(extras)
+        
+        results = self.call_api_authenticated(data)
+        return RdioPlaylistSet(results) if results else None
+    
+    def get_top_charts(self, result_type, start=None, count=None, extras=[]):
+        """Return the site-wide most popular items for a given type.
+        
+        Keyword arguments:
+        result_type -- type to include in results, valid values are "Artist",
+                       "Album", "Track", and "Playlist".
+        start       -- optional. The offset of the first result to return.
+        count       -- optional. The maximum number of results to return.
+        extras      -- optional. A list of additional fields to return.
+        
+        """
+        data = {'method': methods['get_top_charts']}
+        
+        if result_type in ('Artist','Album','Track','Playlist',):
+            data['type'] = result_type
+        else: raise RdioInvalidParameterException(
+            result_type, 'result_type', 'get_top_charts')
+        if start: data['start'] = start
+        if count: data['count'] = count
+        if extras: data['extras'] = ','.join(extras)
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
+    
+    def get_tracks_for_album_in_collection(self, album, user=None, extras=[]):
+        """Which tracks on the given album are in the user's collection.
+        
+        Keyword arguments:
+        album  -- the key of the album.
+        user   -- optional. The user whose collection to examine.
+        extras -- optional. A list of additional fields to return.
+        
+        """
+        data = {
+            'method': methods['get_tracks_for_album_in_collection'],
+            'album': album}
+            
+        if user: data['user'] = user
+        if extras: data['extras'] = ','.join(extras)
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
+    
+    def get_tracks_for_artist(self, artist, appears_on=None, extras=[],
+                              start=None, count=None):
+        """Get all of the tracks by this artist.
+        
+        Keyword arguments:
+        artist     -- the key of the artist.
+        appears_on -- optional. If true, returns tracks that the artist appears
+                      on, rather than tracks credited to the artist.
+        extras     -- optional. A list of additional fields to return.
+        start      -- optional. The offset of the first result to return.
+        count      -- optional. The maximum number of results to return.
+        
+        """
+        data = {'method': methods['get_tracks_for_artist'], 'artist': artist}
+        
+        if appears_on: data['appears_on'] = appears_on
+        if extras: data['extras'] = ','.join(extras)
+        if start: data['start'] = start
+        if count: data['count'] = count
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
+    
+    def get_tracks_for_artist_in_collection(self, artist, user=None,
+                                            extras=[]):
+        """Which tracks from the given artist are in the user's collection.
+        
+        Keyword arguments:
+        artist -- the key of the artist.
+        user   -- optional. The user whose collection to examine.
+        extras -- optional. A list of additional fields to return.
+        
+        """
+        data = {
+            'method': methods['get_tracks_for_artist_in_collection'],
+            'artist': artist}
+        
+        if user: data['user'] = user
+        if extras: data['extras'] = ','.join(extras)
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
+    
+    def get_tracks_in_collection(self, user=None, start=None, count=None,
+                                 sort=None, query=None):
+        """Get all of the tracks in the user's collection.
+        
+        Keyword arguments:
+        user  -- optional. The key of the collection user.
+        start -- optional. The offset of the first result to return.
+        count -- optional. The maximum number of resutls to return.
+        sort  -- optional. Sort by. Valid values are "dateAdded", "playCount",
+                 "artist", "album", and "name".
+        query -- optional. Filter collection tracks by this.
+        
+        """
+        data = {'method': methods['get_tracks_in_collection']}
+        
+        if user: data['user'] = user
+        if start: data['start'] = start
+        if count: data['count'] = count
+        if sort:
+            if sort in ('dateAdded','playCount','artist','album','name',):
+                data['sort'] = sort
+            else: raise RdioInvalidParameterException(
+                sort, 'sort', 'get_tracks_in_collection')
+        if query: data['query'] = query
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
+    
+    def remove_friend(self, user):
+        """Remove a friend from the current user.
+        
+        Keyword arguments
+        user -- the key of the user to remove.
+        
+        """
+        data = {'method': methods['remove_friend'], 'user': user}
+        
+        return self.call_api_authenticated(data)
+    
+    def remove_from_collection(self, keys):
+        """Remove tracks or playlists from the current user's collection.
+        
+        Keyword arguments:
+        keys -- the list of track or playlist keys to remove from the
+                collection.
+        
+        """
+        data = {
+            'method': methods['remove_from_collection'],
+            'keys': ','.join(keys)}
+        
+        return self.call_api_authenticated(data)
+    
+    def remove_from_playlist(self, playlist, tracks, index=None, count=None):
+        """Remove an item from a playlist by its position in the playlist.
+        
+        Keyword arguments:
+        playlist -- the key of the playlist to modify.
+        index    -- the index of the first item to remove.
+        count    -- the number of tracks to remove from the playlist.
+        tracks   -- the list of keys of the tracks to remove.
+        
+        """
+        data = {
+            'method': methods['remove_from_playlist'],
+            'playlist': playlist,
+            'index': index if index else 0,
+            'count': count if count else len(tracks),
+            'tracks': ','.join(tracks)}
+        
+        return self.call_api_authenticated(data)
+    
+    def search(self, query, types, never_or=None, extras=[], start=None,
                count=None):
         """Search for artists, albums, tracks, users, or all kinds of
         objects.
@@ -587,47 +789,30 @@ class Api(object):
         count    -- optional. The maximum number of results to return.
         
         """
-        data = {'method': methods['search'], 'query': query}
-        if types: data['types'] = parse_list_to_comma_delimited_string(types)
+        data = {
+            'method': methods['search'],
+            'query': query,
+            'types': ','.join(types)}
+        
         if never_or: data['never_or'] = never_or
-        if extras:
-            data['extras'] = parse_list_to_comma_delimited_string(extras)
+        if extras: data['extras'] = ','.join(extras)
         if start: data['start'] = start
         if count: data['count'] = count
-        
         results = self.call_api(data)
         return RdioSearchResult(results) if results else None
     
-    def call_api_authenticated(self, data):
-        """Handles checking authentication before talking to the Rdio API.
+    def search_suggestions(self, query, extras=[]):
+        """Match the supplied prefix against artists, albums, tracks, and
+        people in the Rdio system. Returns the first 10 matches.
         
         Keyword arguments:
-        data -- the dictionary of data for the call, including 'method' param.
+        query  -- the search prefix.
+        extras -- optional. A list of additional fields to return.
         
         """
-        if not self._oauth_access_token:
-            raise RdioNotAuthenticatedException(data['method'])
-        else: return self.call_api(data)
-    
-    def call_api(self, data):
-        """Calls the Rdio API. Responsible for handling errors from the API.
+        data = {'method': methods['search_suggestions'], 'query': query}
         
-        Keyword arguments:
-        data -- the dictionary of data for the call, including 'method' param.
-        
-        """
-        
-        data = urllib.urlencode(data)
-        try:
-            response, content = self._oauth_client.request(root_url,
-                                                           http_method, data)
-            parsed_content = json.loads(content)
-            status = parsed_content['status']
-            if status == 'error':
-                raise RdioGenericAPIError(parsed_content['message'])
-                return None
-            elif status == 'ok':
-                return parsed_content['result']
-        except RdioGenericAPIError as e:
-            print "API error: %s" % e.msg
+        if extras: data['extras'] = ','.join(extras)
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
     
