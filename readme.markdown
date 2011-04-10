@@ -6,10 +6,6 @@ Another Python library for accessing the [Rdio API](http://developer.rdio.com/),
 
 Function names and objects will follow Rdio's API specs for [methods](http://developer.rdio.com/docs/read/rest/methods) and [object types](http://developer.rdio.com/docs/read/rest/types) as closely as possible, accounting for Python-ish function and property names (underscores and all that, instead of camelCase).
 
-## Notes
-
-I'll eventually get `setuptools` rockin' for this thing. Once I figure out how to use it.
-
 ## Requirements
 
  * [python 2.6 or higher](http://python.org/download/releases/) but not python 3.0
@@ -65,6 +61,7 @@ I'll eventually get `setuptools` rockin' for this thing. Once I figure out how t
 
 Because you all care.
 
+ * **Version 0.4**: setuptools!
  * **Version 0.3**: All calls implemented; most of them are working properly. Some minor tweaking may need to be done here and there, but a majority of the work is done.
  * **Version 0.2**: Supports PIN authorization through Rdio's oAuth implementation. Added `current_user` call.
  * **Version 0.1**: Initial release. Includes data models, unauthenticated API call logic, and one call.
