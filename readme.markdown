@@ -73,7 +73,6 @@ Then, follow the usage example below. Please code responsibly. Everything is ful
 
 Because you all care.
 
- * **Version 0.4**: setuptools!
- * **Version 0.3**: All calls implemented; most of them are working properly. Some minor tweaking may need to be done here and there, but a majority of the work is done.
+ * **Version 0.3**: All calls implemented; most of them are working properly. Some minor tweaking may need to be done here and there, but a majority of the work is done. Also, setuptools!
  * **Version 0.2**: Supports PIN authorization through Rdio's oAuth implementation. Added `current_user` call.
  * **Version 0.1**: Initial release. Includes data models, unauthenticated API call logic, and one call.
