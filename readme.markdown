@@ -6,6 +6,18 @@ Another Python library for accessing the [Rdio API](http://developer.rdio.com/),
 
 Function names and objects will follow Rdio's API specs for [methods](http://developer.rdio.com/docs/read/rest/methods) and [object types](http://developer.rdio.com/docs/read/rest/types) as closely as possible, accounting for Python-ish function and property names (underscores and all that, instead of camelCase).
 
+## Installation
+
+Don't sweat it. You can geek out and look at the source by cloning this git repo. But I doubt that's why you're here. Just do this!
+
+    pip install python-rdio
+
+What's that? You're not using `pip`? Shame, shame. I **guess** you can do this, too.
+
+    easy_install python-rdio
+
+Then, follow the usage example below. Please code responsibly. Everything is fully documented. That means you can use `__doc__` on each method.
+
 ## Requirements
 
  * [python 2.6 or higher](http://python.org/download/releases/) but not python 3.0
