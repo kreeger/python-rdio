@@ -76,3 +76,7 @@ Because you all care.
  * **Version 0.3**: All calls implemented; most of them are working properly. Some minor tweaking may need to be done here and there, but a majority of the work is done. Also, setuptools!
  * **Version 0.2**: Supports PIN authorization through Rdio's oAuth implementation. Added `current_user` call.
  * **Version 0.1**: Initial release. Includes data models, unauthenticated API call logic, and one call.
+
+## Disclaimer
+
+I don't work for [Rdio](http://rdio.com/). I'm just a nerd who loves Rdio. If someone from Rdio has any sort of objections to this package, be it naming or whatever, please contact me at `benjaminkreeger [at] gmail [dot] com` and we can totally work it out.
