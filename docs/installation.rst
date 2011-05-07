@@ -14,18 +14,22 @@ Requirements
 Using pip
 =========
 
-If you're using ``pip``, the easiest way to get rolling is running this command at your terminal.:
+If you're using ``pip``, the easiest way to get rolling is running this command at your terminal.
 
-    pip install python-rdio
+::
+
+$ pip install python-rdio
 
 This retrieves the latest version on from `PyPI`_.
 
 Using setuptools
 ================
 
-If you prefer setuptools (``easy_install``), you can do the following at a terminal.:
+If you prefer setuptools (``easy_install``), you can do the following at a terminal.
 
-    easy_install python-rdio
+::
+
+$ easy_install python-rdio
 
 This retrieves the latest version on from `PyPI`_.
 
