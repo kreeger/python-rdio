@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name             = 'python-rdio',
-    version          = '0.3',
+    version          = '0.4',
     author           = 'Benjamin Kreeger',
     author_email     = 'benjaminkreeger@gmail.com',
     description      = 'An unofficial wrapper for the Rdio API.',
