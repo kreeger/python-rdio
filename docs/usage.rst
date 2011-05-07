@@ -8,7 +8,7 @@ Getting the manager
 This Python-based Rdio API wrapper (``python-rdio``) must be used by creating an instance of the manager class, known as ``Api``. Upon instance creation, you can either feed in just your OAuth ``consumer_key`` and ``consumer_secret``, or (if you've saved them for the user for which you're communicating with the API) your ``consumer_key``, ``consumer_secret``, ``access_key``, and ``access_secret``::
 
     import rdio
-    manager = rdio.Api('aosiudASUDH76ASD&8&SDasd', 'iuahd6542gSSA', 'UAHiduas7d6A%SD24dsaa', 'AJSADU36shj')
+    api = rdio.Api('aosiudASUDH76ASD&8&SDasd', 'iuahd6542gSSA', 'UAHiduas7d6A%SD24dsaa', 'AJSADU36shj')
 
 Making calls
 ============
