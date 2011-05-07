@@ -13,7 +13,7 @@ setup(
     license          = 'MIT',
     keywords         = 'api rpc rdio music',
     platforms        = 'any',
-    url              = 'http://github.com/kreeger/pyrdio',
+    url              = 'http://github.com/kreeger/python-rdio',
     packages         = find_packages(),
     long_description = read('README'),
     install_requires = ['oauth2>=1.5.167',],
