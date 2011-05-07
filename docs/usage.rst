@@ -13,6 +13,6 @@ This Python-based Rdio API wrapper (``python-rdio``) must be used by creating an
 Making calls
 ============
 
-Talking to the API manager merely involves calling its methods, and passing in parameters. Every method name on the `Rdio API`_ has been translated here from `camelCase`` to ```underscored_lower_case``. Thus, ``getTracksForArtistInCollection`` has become ``get_tracks_for_artist_in_collection``. The same goes for parameters. To look at examples, visit :doc:`examples`.
+Talking to the API manager merely involves calling its methods, and passing in parameters. Every method name on the `Rdio API`_ has been translated here from ``camelCase`` to ``underscored_lower_case``. Thus, ``getTracksForArtistInCollection`` has become ``get_tracks_for_artist_in_collection``. The same goes for parameters. To look at examples, visit :doc:`examples`.
 
 .. _Rdio API: http://developer.rdio.com/docs/read/rest/Methods
