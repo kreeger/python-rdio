@@ -73,6 +73,7 @@ Then, follow the usage example below. Please code responsibly. Everything is ful
 
 Because you all care.
 
+ * **Version 0.4**: Added object types for Rdio stations as documented [here](http://goo.gl/ActAB). Also added user lists for heavy rotation results.
  * **Version 0.3**: All calls implemented; most of them are working properly. Some minor tweaking may need to be done here and there, but a majority of the work is done. Also, setuptools!
  * **Version 0.2**: Supports PIN authorization through Rdio's oAuth implementation. Added `current_user` call.
  * **Version 0.1**: Initial release. Includes data models, unauthenticated API call logic, and one call.

@@ -25,7 +25,7 @@
 """A library that provides a Python interface to Rdio's API."""
 
 __author__ = 'benjaminkreeger@gmail.com'
-__version__ = '0.2'
+__version__ = '0.4'
 
 import cgi
 import inspect
@@ -42,13 +42,18 @@ oauth_access_url = 'http://api.rdio.com/oauth/access_token'
 root_site_url = 'http://www.rdio.com'
 http_method = 'POST'
 rdio_types = {
-    'r': 'artist',
-    'rl': 'collection artist',
     'a': 'album',
-    'al': 'collection album',
-    't': 'track',
+    'al': 'album in collection',
+    'r': 'artist',
+    'rl': 'artist in collection',
+    'rr': 'artist station',
+    'tr': 'artist top songs station',
+    'h': 'heavy rotation station',
     'p': 'playlist',
+    't': 'track',
     's': 'user',
+    'c': 'user collection station',
+    'e': 'user heavy rotation station',
 }
 rdio_genders = {
     'm': ('male', 'his',),
@@ -182,8 +187,12 @@ class RdioArtist(RdioObject):
         self.short_url = data['shortUrl']
         self.album_count = -1
         self.hits = None
+        self.user_count = None
+        self.users = None
         if 'albumCount' in data: self.album_count = data['albumCount']
         if 'hits' in data: self.hits = data['hits']
+        if 'user_count' in data: self.user_count = data['user_count']
+        if 'users' in data: self.users = parse_result_list(data['users'])
 
 class RdioMusicObject(RdioObject):
     """Describes an Rdio music object."""
@@ -203,6 +212,8 @@ class RdioMusicObject(RdioObject):
         self.short_url = data['shortUrl']
         self.embed_url = data['embedUrl']
         self.duration = data['duration']
+        self.big_icon = None
+        if 'bigIcon' in data: self.big_icon = data['bigIcon']
 
 class RdioAlbum(RdioMusicObject):
     """Describes an Rdio album."""
@@ -213,10 +224,16 @@ class RdioAlbum(RdioMusicObject):
         self.track_keys = []
         self.release_date_iso = None
         self.hits = None
+        self.user_count = None
+        self.users = None
+        self.is_compilation = None
         if 'trackKeys' in data: self.track_keys = data['trackKeys']
         if 'releaseDateISO' in data:
             self.release_date_iso = data['releaseDateISO']
         if 'hits' in data: self.hits = data['hits']
+        if 'user_count' in data: self.user_count = data['user_count']
+        if 'users' in data: self.users = parse_result_list(data['users'])
+        if 'isCompilation' in data: self.is_compilation = data['isCompilation']
 
 class RdioTrack(RdioMusicObject):
     """Describes an Rdio track."""
@@ -226,14 +243,20 @@ class RdioTrack(RdioMusicObject):
         self.album_name = data['album']
         self.album_key = data['albumKey']
         self.album_url = data['albumUrl']
-        self.album_artist_name = data['albumArtist']
-        self.album_artist_key = data['albumArtistKey']
+        self.album_artist_name = None
+        self.album_artist_key = None
+        if 'albumArtist' in data: self.album_artist_name = data['albumArtist']
+        if 'albumArtistKey' in data:
+            self.album_artist_key = data['albumArtistKey']
         self.can_download = data['canDownload']
         self.can_download_album_only = data['canDownloadAlbumOnly']
         self.play_count = -1
         self.track_number = -1
+        self.is_on_compilation
         if 'trackNum' in data: self.track_number = data['trackNum']
         if 'playCount' in data: self.play_count = data['playCount']
+        if 'isOnCompilation' in data:
+            self.is_on_compilation = data['isOnCompilation']
 
 class RdioPlaylist(RdioObject):
     """Describes an Rdio playlist."""
@@ -269,6 +292,9 @@ class RdioUser(RdioObject):
         self.display_name = None
         self.track_count = None
         self.last_song_play_time = None
+        self.is_trial = None
+        self.is_subscriber = None
+        self.is_unlimited = None
         if 'username' in data: self.username = data['username']
         if 'lastSongPlayed' in data:
             self.last_song_played = data['lastSongPlayed']
@@ -276,6 +302,9 @@ class RdioUser(RdioObject):
         if 'trackCount' in data: self.track_count = data['trackCount']
         if 'lastSongPlayTime' in data:
             self.last_song_play_time = data['lastSongPlayTime']
+        if 'isTrial' in data: self.is_trial = data['isTrial']    
+        if 'isSubscriber' in data: self.is_subscriber = data['isSubscriber']
+        if 'isUnlimited' in data: self.is_unlimited = data['isUnlimited']
     
     def get_full_url(self):
         return root_site_url + self.url
@@ -348,6 +377,64 @@ class RdioPlaylistSet(JSONBasedObject):
         self.collaborated_playlists = parse_result_list(data['collab'])
         self.subscribed_playlists = parse_result_list(data['subscribed'])
 
+class RdioStation(RdioObject):
+    """Describes basic fields for an Rdio Recommendation Station."""
+    
+    def __init__(self, data):
+        super(RdioStation, self).__init__(data)
+        self.count = data['count']
+        self.length = data['length']
+        self.name = data['name']
+        self.reload_on_repeat = data['reloadOnRepeat']
+        self.tracks = data['tracks']
+        self.track_keys = None
+        if 'trackKeys' in data: self.track_keys = data['trackKeys']
+
+class RdioArtistStation(RdioStation):
+    """Describes an artist recommendation station."""
+    
+    def __init__(self, data):
+        super(RdioArtistStation, self).__init__(data)
+        self.artist_name = data['artistName']
+        self.artist_url = data['artistUrl']
+        self.has_radio = data['hasRadio']
+        self.short_url = data['shortUrl']
+        self.album_count = None
+        if 'albumCount' in data: self.album_count = data['albumCount']
+
+class RdioHeavyRotationStation(RdioStation):
+    """Describes a user network (or global) heavy rotation station."""
+    
+    def __init__(self, data):
+        super(RdioHeavyRotationStation, self).__init__(data)
+        self.user = data['user']
+
+class RdioHeavyRotationUserStation(RdioStation):
+    """Describes a user heavy rotation station."""
+    
+    def __init__(self, data):
+        super(RdioHeavyRotationUserStation, self).__init__(data)
+        self.user = data['user']
+
+class RdioArtistTopSongsStation(RdioStation):
+    """Describes an artist station."""
+    
+    def __init__(self, data):
+        super(RdioArtistTopSongsStation, self).__init__(data)
+        self.artist_name = data['artistName']
+        self.artist_url = data['artistUrl']
+        self.has_radio = data['hasRadio']
+        self.short_url = data['shortUrl']
+        self.album_count = None
+        if 'albumCount' in data: self.album_count = data['albumCount']
+
+class RdioUserCollectionStation(RdioStation):
+    """Describes a user collection station."""
+    
+    def __init__(self, data):
+        super(RdioUserCollectionStation, self).__init__(data)
+        self.user = data['user']
+        
 # Here's the big kahuna.
 class Api(object):
     """Handles communication with Rdio API."""
