@@ -73,6 +73,7 @@ Then, follow the usage example below. Please code responsibly. Everything is ful
 
 Because you all care.
 
+ * **Version 0.5**: Fixed some bugs around the 0.4 release, including making `user.last_song_played` an actual `RdioTrack`.
  * **Version 0.4**: Added object types for Rdio stations as documented [here](http://goo.gl/ActAB). Also added user lists for heavy rotation results.
  * **Version 0.3**: All calls implemented; most of them are working properly. Some minor tweaking may need to be done here and there, but a majority of the work is done. Also, setuptools!
  * **Version 0.2**: Supports PIN authorization through Rdio's oAuth implementation. Added `current_user` call.

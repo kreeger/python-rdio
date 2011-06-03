@@ -33,14 +33,16 @@ import oauth2 as oauth
 import json
 import urllib
 import re
+from datetime import datetime
+from dateutil import tz
 
 # Declare some constants and stuff
 
-root_url = 'http://api.rdio.com/1/'
-oauth_token_url = 'http://api.rdio.com/oauth/request_token'
-oauth_access_url = 'http://api.rdio.com/oauth/access_token'
-root_site_url = 'http://www.rdio.com'
-http_method = 'POST'
+ROOT_URL = 'http://api.rdio.com/1/'
+OAUTH_TOKEN_URL = 'http://api.rdio.com/oauth/request_token'
+OAUTH_ACCESS_URL = 'http://api.rdio.com/oauth/access_token'
+ROOT_SITE_URL = 'http://www.rdio.com'
+HTTP_METHOD = 'POST'
 rdio_types = {
     'a': 'album',
     'al': 'album in collection',
@@ -104,6 +106,9 @@ methods = {
     'search': 'search',
     'search_suggestions': 'searchSuggestions',
 }
+
+TIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
+UTC = tz.tzutc()
 
 # Define API error handling.
 class RdioGenericAPIError(Exception):
@@ -220,7 +225,8 @@ class RdioAlbum(RdioMusicObject):
     
     def __init__(self, data):
         super(RdioAlbum, self).__init__(data)
-        self.release_date = data['displayDate']
+        self.release_date = datetime.strptime(
+			data['displayDate'], TIME_FORMAT).replace(tzinfo=UTC)
         self.track_keys = []
         self.release_date_iso = None
         self.hits = None
@@ -252,7 +258,7 @@ class RdioTrack(RdioMusicObject):
         self.can_download_album_only = data['canDownloadAlbumOnly']
         self.play_count = -1
         self.track_number = -1
-        self.is_on_compilation
+        self.is_on_compilation = None
         if 'trackNum' in data: self.track_number = data['trackNum']
         if 'playCount' in data: self.play_count = data['playCount']
         if 'isOnCompilation' in data:
@@ -269,7 +275,8 @@ class RdioPlaylist(RdioObject):
         self.owner_url = data['ownerUrl']
         self.owner_key = data['ownerKey']
         self.owner_icon = data['ownerIcon']
-        self.last_updated = data['lastUpdated']
+        self.last_updated = datetime.strptime(
+			data['lastUpdated'], TIME_FORMAT).replace(tzinfo=UTC)
         self.short_url = data['shortUrl']
         self.embed_url = data['embedUrl']
         self.track_keys = []
@@ -297,17 +304,18 @@ class RdioUser(RdioObject):
         self.is_unlimited = None
         if 'username' in data: self.username = data['username']
         if 'lastSongPlayed' in data:
-            self.last_song_played = data['lastSongPlayed']
+            self.last_song_played = RdioTrack(data['lastSongPlayed'])
         if 'displayName' in data: self.display_name = data['displayName']
         if 'trackCount' in data: self.track_count = data['trackCount']
         if 'lastSongPlayTime' in data:
-            self.last_song_play_time = data['lastSongPlayTime']
+            self.last_song_play_time = datetime.strptime(
+				data['lastSongPlayTime'], TIME_FORMAT).replace(tzinfo=UTC)
         if 'isTrial' in data: self.is_trial = data['isTrial']    
         if 'isSubscriber' in data: self.is_subscriber = data['isSubscriber']
         if 'isUnlimited' in data: self.is_unlimited = data['isUnlimited']
     
     def get_full_url(self):
-        return root_site_url + self.url
+        return ROOT_SITE_URL + self.url
     
     def get_full_name(self):
         return "%s %s" % (self.first_name, self.last_name,)
@@ -331,7 +339,8 @@ class RdioActivityItem(JSONBasedObject):
     def __init__(self, data):
         super(RdioActivityItem, self).__init__(data)
         self.owner = RdioUser(data['owner'])
-        self.date = data['date']
+        self.date = datetime.strptime(
+			data['date'], TIME_FORMAT).replace(tzinfo=UTC)
         self.update_type_id = data['update_type']
         self.update_type = rdio_activity_types[data['update_type']][0]
         self._verbose_type = rdio_activity_types[data['update_type']][1]
@@ -492,8 +501,8 @@ class Api(object):
         data = urllib.urlencode({'oauth_callback': 'oob'})
         try:
             # Get token and secret from Rdio's authorization endpoint.
-            response, content  = self._oauth_client.request(oauth_token_url,
-                                                            http_method, data)
+            response, content  = self._oauth_client.request(OAUTH_TOKEN_URL,
+                                                            HTTP_METHOD, data)
             # Make a dict out of it! Then, save entries to local variables.
             parsed_content     = dict(cgi.parse_qsl(content))
             token              = parsed_content['oauth_token']
@@ -534,8 +543,8 @@ class Api(object):
             self._oauth_client = oauth.Client(self._oauth_consumer,
                                               self._oauth_request_token)
             # Get our full-blown, shiny new access token.
-            response, content  = self._oauth_client.request(oauth_access_url,
-                                                    http_method)
+            response, content  = self._oauth_client.request(OAUTH_ACCESS_URL,
+                                                    HTTP_METHOD)
             parsed_content     = dict(cgi.parse_qsl(content))
             token              = parsed_content['oauth_token']
             token_secret       = parsed_content['oauth_token_secret']
@@ -571,8 +580,8 @@ class Api(object):
 
         """
         data = urllib.urlencode(data)
-        response, content = self._oauth_client.request(root_url,
-                                                       http_method, data)
+        response, content = self._oauth_client.request(ROOT_URL,
+                                                       HTTP_METHOD, data)
         parsed_content = json.loads(content)
         status = parsed_content['status']
         if status == 'error':
