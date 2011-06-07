@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name             = 'python-rdio',
-    version          = '0.4',
+    version          = '0.5',
     author           = 'Benjamin Kreeger',
     author_email     = 'benjaminkreeger@gmail.com',
     description      = 'An unofficial wrapper for the Rdio API.',
@@ -16,5 +16,5 @@ setup(
     url              = 'http://github.com/kreeger/python-rdio',
     packages         = find_packages(),
     long_description = read('README'),
-    install_requires = ['oauth2>=1.5.167',],
+    install_requires = ['oauth2>=1.5.167','python-dateutil==2.0'],
 )

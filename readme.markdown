@@ -22,6 +22,7 @@ Then, follow the usage example below. Please code responsibly. Everything is ful
 
  * [python 2.6 or higher](http://python.org/download/releases/) but not python 3.0
  * [oauth2](https://github.com/simplegeo/python-oauth2)
+ * [dateutil](http://labix.org/python-dateutil)
 
 ## Usage
 
@@ -67,13 +68,13 @@ Then, follow the usage example below. Please code responsibly. Everything is ful
             new_playlist.track_count,
             new_playlist.short_url)
     tracks = rdio_manager.get(new_playlist.track_keys)
-    for t in tracks: print "%s (Duration: %s seconds)" % (t.name, t.duration,)
+    for t in tracks: print "%s (Duration: %i seconds)" % (t.name, t.duration.seconds,)
     
 ## Version history
 
 Because you all care.
 
- * **Version 0.5**: Fixed some bugs around the 0.4 release, including making `user.last_song_played` an actual `RdioTrack`.
+ * **Version 0.5**: Fixed some bugs around the 0.4 release, including making `user.last_song_played` an actual `RdioTrack`. Also made duration a `timedelta`.
  * **Version 0.4**: Added object types for Rdio stations as documented [here](http://goo.gl/ActAB). Also added user lists for heavy rotation results.
  * **Version 0.3**: All calls implemented; most of them are working properly. Some minor tweaking may need to be done here and there, but a majority of the work is done. Also, setuptools!
  * **Version 0.2**: Supports PIN authorization through Rdio's oAuth implementation. Added `current_user` call.

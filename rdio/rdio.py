@@ -33,7 +33,7 @@ import oauth2 as oauth
 import json
 import urllib
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from dateutil import tz
 
 # Declare some constants and stuff
@@ -216,7 +216,7 @@ class RdioMusicObject(RdioObject):
         self.can_tether = data['canTether']
         self.short_url = data['shortUrl']
         self.embed_url = data['embedUrl']
-        self.duration = data['duration']
+        self.duration = timedelta(seconds=data['duration'])
         self.big_icon = None
         if 'bigIcon' in data: self.big_icon = data['bigIcon']
 
