@@ -105,6 +105,12 @@ methods = {
     'remove_from_playlist': 'removeFromPlaylist',
     'search': 'search',
     'search_suggestions': 'searchSuggestions',
+    'set_playlist_collaborating': 'setPlaylistCollaborating',
+    'set_playlist_collaboration_mode': 'setPlaylistCollaborationMode',
+    'set_playlist_fields': 'setPlaylistFields',
+    'set_playlist_order': 'setPlaylistOrder',
+    'user_followers': 'userFollowers',
+    'user_following': 'userFollowing',
 }
 
 TIME_FORMAT = '%Y-%m-%dT%H:%M:%S'
@@ -194,10 +200,16 @@ class RdioArtist(RdioObject):
         self.hits = None
         self.user_count = None
         self.users = None
+        self.top_songs_key = None
+        self.collection_track_count = None
+        self.radio_key = None
         if 'albumCount' in data: self.album_count = data['albumCount']
         if 'hits' in data: self.hits = data['hits']
         if 'user_count' in data: self.user_count = data['user_count']
         if 'users' in data: self.users = parse_result_list(data['users'])
+        if 'topSongsKey' in data: self.top_songs_key = data['topSongsKey']
+        if 'count' in data: self.collection_track_count = data['count']
+        if 'radioKey' in data: self.radio_key = data['radioKey']
 
 class RdioMusicObject(RdioObject):
     """Describes an Rdio music object."""
@@ -225,8 +237,7 @@ class RdioAlbum(RdioMusicObject):
     
     def __init__(self, data):
         super(RdioAlbum, self).__init__(data)
-        self.release_date = datetime.strptime(
-			data['displayDate'], TIME_FORMAT).replace(tzinfo=UTC)
+        self.release_date = data['displayDate']
         self.track_keys = []
         self.release_date_iso = None
         self.hits = None
@@ -275,12 +286,14 @@ class RdioPlaylist(RdioObject):
         self.owner_url = data['ownerUrl']
         self.owner_key = data['ownerKey']
         self.owner_icon = data['ownerIcon']
-        self.last_updated = datetime.strptime(
-			data['lastUpdated'], TIME_FORMAT).replace(tzinfo=UTC)
+        self.last_updated = datetime.fromtimestamp(
+            int(data['lastUpdated']))
         self.short_url = data['shortUrl']
         self.embed_url = data['embedUrl']
         self.track_keys = []
+        self.description = None
         if 'trackKeys' in data: self.track_keys = data['trackKeys']
+        if 'description' in data: self.description = data['description']
 
 class RdioUser(RdioObject):
     """Describes an Rdio user."""
@@ -302,6 +315,13 @@ class RdioUser(RdioObject):
         self.is_trial = None
         self.is_subscriber = None
         self.is_unlimited = None
+        self.heavy_rotation_key = None
+        self.network_heavy_rotation_key = None
+        self.collection_key = None
+        self.following_url = None
+        self.collection_url = None
+        self.playlists_url = None
+        self.followers_url = None
         if 'username' in data: self.username = data['username']
         if 'lastSongPlayed' in data:
             self.last_song_played = RdioTrack(data['lastSongPlayed'])
@@ -313,6 +333,15 @@ class RdioUser(RdioObject):
         if 'isTrial' in data: self.is_trial = data['isTrial']    
         if 'isSubscriber' in data: self.is_subscriber = data['isSubscriber']
         if 'isUnlimited' in data: self.is_unlimited = data['isUnlimited']
+        if 'heavyRotationKey' in data:
+            self.heavy_rotation_key = data['heavyRotationKey']
+        if 'networkHeavyRotationKey' in data:
+            self.network_heavy_rotation_key = data['networkHeavyRotationKey']
+        if 'collectionKey' in data: self.collection_key = data['collectionKey']
+        if 'followingUrl' in data: self.following_url = data['followingUrl']
+        if 'collectionUrl' in data: self.collection_url = data['collectionUrl']
+        if 'playlistsUrl' in data: self.playlists_url = data['playlistsUrl']
+        if 'followersUrl' in data: self.followers_url = data['followersUrl']
     
     def get_full_url(self):
         return ROOT_SITE_URL + self.url
@@ -409,7 +438,11 @@ class RdioArtistStation(RdioStation):
         self.has_radio = data['hasRadio']
         self.short_url = data['shortUrl']
         self.album_count = None
+        self.top_songs_key = None
+        self.radio_key = None
         if 'albumCount' in data: self.album_count = data['albumCount']
+        if 'topSongsKey' in data: self.top_songs_key = data['topSongsKey']
+        if 'radioKey' in data: self.radio_key = data['radioKey']
 
 class RdioHeavyRotationStation(RdioStation):
     """Describes a user network (or global) heavy rotation station."""
@@ -435,7 +468,11 @@ class RdioArtistTopSongsStation(RdioStation):
         self.has_radio = data['hasRadio']
         self.short_url = data['shortUrl']
         self.album_count = None
+        self.top_songs_key = None
+        self.radio_key = None
         if 'albumCount' in data: self.album_count = data['albumCount']
+        if 'topSongsKey' in data: self.top_songs_key = data['topSongsKey']
+        if 'radioKey' in data: self.radio_key = data['radioKey']
 
 class RdioUserCollectionStation(RdioStation):
     """Describes a user collection station."""
@@ -624,8 +661,8 @@ class Api(object):
         data = {
             'method': methods['add_to_playlist'],
             'playlist': playlist,
-            'keys': ','.join(tracks)}
-        
+            'tracks': ','.join(tracks)}
+        print data
         return self.call_api_authenticated(data)
     
     def create_playlist(self, name, description, tracks, extras=[]):
@@ -1130,6 +1167,115 @@ class Api(object):
         results = self.call_api(data)
         return parse_result_list(results) if results else None
     
+    def set_playlist_collaborating(self, playlist, collaborating):
+        """Start or stop collaborating on a playlist.
+        
+        Keyword arguments:
+        playlist      -- the key of the playlist.
+        collaborating -- true if you want to turn on collaboration.
+        
+        """
+        
+        data = {
+            'method': methods['set_playlist_collaborating'],
+            'playlist': playlist,
+            'collaborating': collaborating}
+        
+        return self.call_api_authenticated(data)
+    
+    def set_playlist_collaboration_mode(self, playlist, mode):
+        """Set the playlist collaboration mode to allow no collaboration (0),
+        all user collaboration (1), or collaboration with those followed by the
+        playlist owner (2).
+        
+        Keyword arguments:
+        playlist -- the key of the playlist to modify.
+        mode     -- the new mode for the playlist (an integer).
+        
+        """
+        
+        data = {
+            'method': methods['set_playlist_collaboration_mode'],
+            'playlist': playlist,
+            'mode': mode}
+        
+        return self.call_api_authenticated(data)
+    
+    def set_playlist_fields(self, playlist, name, description):
+        """Sets the name and description for a playlist.
+        
+        Keyword arguments:
+        playlist    -- the key of the playlist to modify.
+        name        -- the new name of the playlist.
+        description -- the new description of the playlist.
+        
+        """
+        
+        data = {
+            'method': methods['set_playlist_fields'],
+            'playlist': playlist,
+            'name': name,
+            'description': description}
+        
+        return self.call_api_authenticated(data)
+    
+    def set_playlist_order(self, playlist, tracks):
+        """Saves the given order of tracks in a given playlist. The new order
+        must have the same tracks as the previous order (this method may not
+        be used to add/remove tracks).
+        
+        Keyword arguments:
+        playlist -- the key of the playlist to reorder.
+        tracks   -- a list of the tracks in their new order.
+        
+        """
+        
+        data = {
+            'method': methods['set_playlist_order'],
+            'playlist': playlist,
+            'tracks': ','.join(tracks)}
+        
+        return self.call_api_authenticated(data)
+    
+    def user_followers(self, user, start=None, count=None, extras=[]):
+        """Get a list of users following a user.
+        
+        Keyword arguments:
+        user -- the key of the user.
+        start -- optional. The offset of the first field to return.
+        count -- optional. The max number of results to return.
+        extras -- optional. A list of additional fields to return.
+        
+        """
+        
+        data = {'method': methods['user_followers'], 'user': user}
+        if start: data['start'] = start
+        if count: data['count'] = count
+        if extras: data['extras'] = ','.join(extras)
+        
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
+    
+    def user_following(self, user, start=None, count=None, extras=[]):
+        """Get a list of users that a user follows.
+
+        Keyword arguments:
+        user -- the key of the user.
+        start -- optional. The offset of the first field to return.
+        count -- optional. The max number of results to return.
+        extras -- optional. A list of additional fields to return.
+
+        """
+
+        data = {'method': methods['user_following'], 'user': user}
+        if start: data['start'] = start
+        if count: data['count'] = count
+        if extras: data['extras'] = ','.join(extras)
+
+        results = self.call_api(data)
+        return parse_result_list(results) if results else None
+    
+
 def derive_rdio_type_from_data(rdio_object):
     if rdio_types[rdio_object['type']] == 'artist':
         return RdioArtist(rdio_object)
