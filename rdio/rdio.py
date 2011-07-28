@@ -533,9 +533,9 @@ class Api(object):
             self._oauth_client       = oauth.Client(self._oauth_consumer,
                                                      self._oauth_access_token)
     
-    def get_token_and_login_url(self):
+    def get_token_and_login_url(self, oauth_callback='oob'):
         """Gets the oAuth token via the oauth2 library."""
-        data = urllib.urlencode({'oauth_callback': 'oob'})
+        data = urllib.urlencode({'oauth_callback': oauth_callback})
         try:
             # Get token and secret from Rdio's authorization endpoint.
             response, content  = self._oauth_client.request(OAUTH_TOKEN_URL,
