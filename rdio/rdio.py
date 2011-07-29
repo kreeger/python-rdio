@@ -27,7 +27,7 @@
 __author__ = 'benjaminkreeger@gmail.com'
 __version__ = '0.4'
 
-import cgi
+from urlparse import parse_qsl
 import inspect
 import oauth2 as oauth
 import json
@@ -534,44 +534,40 @@ class Api(object):
                                                      self._oauth_access_token)
     
     def get_token_and_login_url(self, oauth_callback='oob'):
-        """Gets the oAuth token via the oauth2 library."""
+        """Gets the oAuth token via the oauth2 library.
+        Keyword arguments:
+        oauth_callback -- optional. If no oauth_callback is specified, we assume your application
+                          is a desktop application.
+        """
+        #if oauth_callback is not defined, we're assuming you have a desktop application
         data = urllib.urlencode({'oauth_callback': oauth_callback})
         try:
             # Get token and secret from Rdio's authorization endpoint.
             response, content  = self._oauth_client.request(OAUTH_TOKEN_URL,
                                                             HTTP_METHOD, data)
-            # Make a dict out of it! Then, save entries to local variables.
-            parsed_content     = dict(cgi.parse_qsl(content))
-            token              = parsed_content['oauth_token']
-            token_secret       = parsed_content['oauth_token_secret']
-            login_url          = parsed_content['login_url']
-            callback_confirmed = parsed_content['oauth_callback_confirmed']
-            # Save our request token object. Don't do this in our 
-            # set_credentials function as it's just for the request token,
-            # not the full access token.
-            self._oauth_request_token = oauth.Token(key=token,
-                                                    secret=token_secret)
-            # Remove the secret before we send it back.
-            del parsed_content['oauth_token_secret']
-            # Send back what the user needs to know.
-            return parsed_content
+            # Make a dict out of it! Then, return dict.
+            return dict(parse_qsl(content))
         except:
             print "Something happened during %s." % inspect.stack()[0][3]
             pass
     
-    def authorize_with_verifier(self, oauth_verifier):
+    def authorize_with_verifier(self, oauth_verifier, request_token):
         """Authorizes the oAuth handler with verifier and upgrades the token
         and client. Returns dictionary containing access key and secret if
         success; None if failure.
         
         Keyword arguments:
         oauth_verifier -- required. The PIN code from oAuth.
-        
+        request_token  -- required. An object containing 'oauth_token' from the authorize/callback url
+                          and 'oauth_token_secret' from get_token_and_login_url()
         """
         try:
             # If we don't have a request token yet, let the user know.
-            if not self._oauth_request_token:
+            if not request_token:
                 raise RdioGenericAPIError("Must set token first.")
+
+            self._oauth_request_token = oauth.Token(key=request_token['oauth_token'],
+                                                    secret=request_token['oauth_token_secret'])
             # Tell the token object to get verified.
             self._oauth_request_token.set_verifier(oauth_verifier)
             # Update our client object with our private token object.
@@ -582,7 +578,7 @@ class Api(object):
             # Get our full-blown, shiny new access token.
             response, content  = self._oauth_client.request(OAUTH_ACCESS_URL,
                                                     HTTP_METHOD)
-            parsed_content     = dict(cgi.parse_qsl(content))
+            parsed_content     = dict(parse_qsl(content))
             token              = parsed_content['oauth_token']
             token_secret       = parsed_content['oauth_token_secret']
             # Send our token to our credential handler function.
@@ -591,8 +587,8 @@ class Api(object):
             # If the private token was made, return True; else return False.
             if self._oauth_access_token:
                 return {
-                    'access_token_key':    token,
-                    'access_token_secret': token_secret}
+                    'oauth_token':    token,
+                    'oauth_token_secret': token_secret}
             else:
                 return None
         except RdioGenericAPIError as e:
