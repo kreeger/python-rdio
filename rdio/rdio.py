@@ -294,6 +294,11 @@ class RdioPlaylist(RdioObject):
         self.description = None
         if 'trackKeys' in data: self.track_keys = data['trackKeys']
         if 'description' in data: self.description = data['description']
+        # process "tracks" if present
+        if 'tracks' in data:
+            self.tracks = [RdioTrack(x) for x in data['tracks']]
+            # Populate track_keys
+            self.track_keys = [x.key for x in self.tracks]
 
 class RdioUser(RdioObject):
     """Describes an Rdio user."""
