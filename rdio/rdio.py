@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 # The MIT License
-# 
+#
 # Copyright 2011 Benjamin Kreeger
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -10,10 +10,10 @@
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in
 # all copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -119,7 +119,7 @@ UTC = tz.tzutc()
 # Define API error handling.
 class RdioGenericAPIError(Exception):
     """Handles all other unknown Rdio API errors."""
-    
+
     def __init__(self, method):
         super(RdioGenericAPIError, self).__init__()
         self.method   = method
@@ -128,34 +128,34 @@ class RdioGenericAPIError(Exception):
 
 class RdioMissingArgumentError(Exception):
     """Handles exceptions around missing arguments."""
-    
+
     def __init__(self, argument, method):
         super(RdioMissingArgumentError, self).__init__()
         self.argument = argument
         self.method   = method
         print "Method %s is missing required argument %s." % (
             self.method, self.argument,)
-    
+
     def __str__(self):
         return repr("Method %s is missing required argument %s." % (
             self.method, self.argument,))
 
 class RdioNotAuthenticatedException(Exception):
     """Handles exceptions around not being logged in."""
-    
+
     def __init__(self, method):
         super(RdioNotAuthenticatedException, self).__init__()
         self.method = method
         print "User is not authenticated. %s cannot be called." % (
             self.method,)
-    
+
     def __str__(self):
         return repr("User is not authenticated. %s cannot be called." %
             (self.method,))
 
 class RdioInvalidParameterException(Exception):
     """Handles exceptions around invalid parameters being passed in."""
-    
+
     def __init__(self, value, param, method):
         super(RdioInvalidParameterException, self).__init__()
         self.value  = value
@@ -163,7 +163,7 @@ class RdioInvalidParameterException(Exception):
         self.method = method
         print "%s is an invalid parameter for %s in method %s." % (
             self.value, self.param, self.method,)
-    
+
     def __str__(self):
         return repr("%s is an invalid parameter for %s in method %s." % (
             self.value, self.param, self.method,))
@@ -171,14 +171,14 @@ class RdioInvalidParameterException(Exception):
 # Define objects.
 class JSONBasedObject(object):
     """Describeds a JSON based object (keeps data)."""
-    
+
     def __init__(self, data):
         super(JSONBasedObject, self).__init__()
         self._data = data
 
 class RdioObject(JSONBasedObject):
     """Describes common fields a base Rdio object will have."""
-    
+
     def __init__(self, data):
         super(RdioObject, self).__init__(data)
         self.key = data['key']
@@ -189,7 +189,7 @@ class RdioObject(JSONBasedObject):
 
 class RdioArtist(RdioObject):
     """Describes an Rdio artist."""
-    
+
     def __init__(self, data):
         super(RdioArtist, self).__init__(data)
         self.name = data['name']
@@ -213,7 +213,7 @@ class RdioArtist(RdioObject):
 
 class RdioMusicObject(RdioObject):
     """Describes an Rdio music object."""
-    
+
     def __init__(self, data):
         super(RdioMusicObject, self).__init__(data)
         self.name = data['name']
@@ -234,7 +234,7 @@ class RdioMusicObject(RdioObject):
 
 class RdioAlbum(RdioMusicObject):
     """Describes an Rdio album."""
-    
+
     def __init__(self, data):
         super(RdioAlbum, self).__init__(data)
         self.release_date = data['displayDate']
@@ -254,7 +254,7 @@ class RdioAlbum(RdioMusicObject):
 
 class RdioTrack(RdioMusicObject):
     """Describes an Rdio track."""
-    
+
     def __init__(self, data):
         super(RdioTrack, self).__init__(data)
         self.album_name = data['album']
@@ -277,7 +277,7 @@ class RdioTrack(RdioMusicObject):
 
 class RdioPlaylist(RdioObject):
     """Describes an Rdio playlist."""
-    
+
     def __init__(self, data):
         super(RdioPlaylist, self).__init__(data)
         self.name = data['name']
@@ -302,7 +302,7 @@ class RdioPlaylist(RdioObject):
 
 class RdioUser(RdioObject):
     """Describes an Rdio user."""
-    
+
     def __init__(self, data):
         super(RdioUser, self).__init__(data)
         self.first_name = data['firstName']
@@ -335,7 +335,7 @@ class RdioUser(RdioObject):
         if 'lastSongPlayTime' in data:
             self.last_song_play_time = datetime.strptime(
 				data['lastSongPlayTime'], TIME_FORMAT).replace(tzinfo=UTC)
-        if 'isTrial' in data: self.is_trial = data['isTrial']    
+        if 'isTrial' in data: self.is_trial = data['isTrial']
         if 'isSubscriber' in data: self.is_subscriber = data['isSubscriber']
         if 'isUnlimited' in data: self.is_unlimited = data['isUnlimited']
         if 'heavyRotationKey' in data:
@@ -347,16 +347,16 @@ class RdioUser(RdioObject):
         if 'collectionUrl' in data: self.collection_url = data['collectionUrl']
         if 'playlistsUrl' in data: self.playlists_url = data['playlistsUrl']
         if 'followersUrl' in data: self.followers_url = data['followersUrl']
-    
+
     def get_full_url(self):
         return ROOT_SITE_URL + self.url
-    
+
     def get_full_name(self):
         return "%s %s" % (self.first_name, self.last_name,)
 
 class RdioSearchResult(JSONBasedObject):
     """Describes an Rdio search result and the extra fields it brings."""
-    
+
     def __init__(self, data):
         super(RdioSearchResult, self).__init__(data)
         self.album_count = data['album_count']
@@ -369,7 +369,7 @@ class RdioSearchResult(JSONBasedObject):
 
 class RdioActivityItem(JSONBasedObject):
     """Describes an item in Rdio's history object list."""
-    
+
     def __init__(self, data):
         super(RdioActivityItem, self).__init__(data)
         self.owner = RdioUser(data['owner'])
@@ -401,7 +401,7 @@ class RdioActivityItem(JSONBasedObject):
 
 class RdioActivityStream(JSONBasedObject):
     """Describes a stream of history for a user, for public, etc."""
-    
+
     def __init__(self, data):
         super(RdioActivityStream, self).__init__(data)
         self.last_id = data['last_id']
@@ -413,7 +413,7 @@ class RdioActivityStream(JSONBasedObject):
 
 class RdioPlaylistSet(JSONBasedObject):
     """Describes a set of playlists, owned, collaborated, and subscribed."""
-    
+
     def __init__(self, data):
         super(RdioPlaylistSet, self).__init__(data)
         self.owned_playlists = parse_result_list(data['owned'])
@@ -422,7 +422,7 @@ class RdioPlaylistSet(JSONBasedObject):
 
 class RdioStation(RdioObject):
     """Describes basic fields for an Rdio Recommendation Station."""
-    
+
     def __init__(self, data):
         super(RdioStation, self).__init__(data)
         self.count = data['count']
@@ -435,7 +435,7 @@ class RdioStation(RdioObject):
 
 class RdioArtistStation(RdioStation):
     """Describes an artist recommendation station."""
-    
+
     def __init__(self, data):
         super(RdioArtistStation, self).__init__(data)
         self.artist_name = data['artistName']
@@ -451,21 +451,21 @@ class RdioArtistStation(RdioStation):
 
 class RdioHeavyRotationStation(RdioStation):
     """Describes a user network (or global) heavy rotation station."""
-    
+
     def __init__(self, data):
         super(RdioHeavyRotationStation, self).__init__(data)
         self.user = data['user']
 
 class RdioHeavyRotationUserStation(RdioStation):
     """Describes a user heavy rotation station."""
-    
+
     def __init__(self, data):
         super(RdioHeavyRotationUserStation, self).__init__(data)
         self.user = data['user']
 
 class RdioArtistTopSongsStation(RdioStation):
     """Describes an artist station."""
-    
+
     def __init__(self, data):
         super(RdioArtistTopSongsStation, self).__init__(data)
         self.artist_name = data['artistName']
@@ -481,47 +481,47 @@ class RdioArtistTopSongsStation(RdioStation):
 
 class RdioUserCollectionStation(RdioStation):
     """Describes a user collection station."""
-    
+
     def __init__(self, data):
         super(RdioUserCollectionStation, self).__init__(data)
         self.user = data['user']
-        
+
 # Here's the big kahuna.
 class Api(object):
     """Handles communication with Rdio API."""
-    
+
     def __init__(self,
                  consumer_key=None,
                  consumer_secret=None,
                  access_token_key=None,
                  access_token_secret=None):
         """Instantiates a new Rdio API object.
-        
+
         Keyword arguments:
         consumer_key        -- The oAuth API key for the application.
         consumer_secret     -- The oAuth API secret for the application.
         access_token_key    -- The oAuth user's token key.
         access_token_secret -- The oAuth user's token secret.
-        
+
         """
         # The only thing to do right now is to set credentials.
         self.set_credentials(consumer_key=consumer_key,
                              consumer_secret=consumer_secret,
                              access_token_key=access_token_key,
                              access_token_secret=access_token_secret)
-    
+
     def set_credentials(self, consumer_key=None, consumer_secret=None,
                        access_token_key=None, access_token_secret=None):
         """Sets the consumer_key and _secret for this instance.
-        
+
         Keyword arguments:
         consumer_key        -- The oAuth API key for the application.
         consumer_secret     -- The oAuth API secret for the application.
         access_token_key    -- The oAuth user's token key.
         access_token_secret -- The oAuth user's token secret.
-        
+
         """
-        
+
         # Set our keys and secrets, depending on what was passed in.
         if consumer_key and consumer_secret:
             # Get our consumer object, which is just made of a key and secret
@@ -537,7 +537,7 @@ class Api(object):
             # Upgrade our client object to talk to the API on the user's behalf
             self._oauth_client       = oauth.Client(self._oauth_consumer,
                                                      self._oauth_access_token)
-    
+
     def get_token_and_login_url(self, oauth_callback='oob'):
         """Gets the oAuth token via the oauth2 library.
         Keyword arguments:
@@ -555,12 +555,12 @@ class Api(object):
         except:
             print "Something happened during %s." % inspect.stack()[0][3]
             pass
-    
+
     def authorize_with_verifier(self, oauth_verifier, request_token):
         """Authorizes the oAuth handler with verifier and upgrades the token
         and client. Returns dictionary containing access key and secret if
         success; None if failure.
-        
+
         Keyword arguments:
         oauth_verifier -- required. The PIN code from oAuth.
         request_token  -- required. An object containing 'oauth_token' from the authorize/callback url
@@ -598,7 +598,7 @@ class Api(object):
                 return None
         except RdioGenericAPIError as e:
             print "API error: %s." % e.msg
-    
+
     def call_api_authenticated(self, data):
         """Handles checking authentication before talking to the Rdio API.
 
@@ -631,33 +631,33 @@ class Api(object):
     def add_friend(self, user):
         """Add a friend to the current user. Returns True if the add succeeds,
         and False if it fails. Requires authentication.
-        
+
         Keyword arguments:
         user -- the key of the user to add as a friend.
-        
+
         """
         data = {'method': methods['add_friend'], 'user': user}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def add_to_collection(self, keys):
         """Adds tracks or playlists to the current user's collection.
-        
+
         Keyword arguments:
         keys -- a list of tracks or playlists to add to the user's collection.
-        
+
         """
         data = {'method': methods['add_to_collection'], 'keys': ','.join(keys)}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def add_to_playlist(self, playlist, tracks):
         """Add a track to a playlist.
-        
+
         Keyword arguments:
         playlist -- key of the playlist to add to.
         tracks   -- keys of tracks to add to the playlist.
-        
+
         """
         data = {
             'method': methods['add_to_playlist'],
@@ -665,12 +665,12 @@ class Api(object):
             'tracks': ','.join(tracks)}
         print data
         return self.call_api_authenticated(data)
-    
+
     def create_playlist(self, name, description, tracks, extras=[]):
         """Create a new playlist in the current user's collection. The new
         playlist will be returned if the creation is successful; otherwise null
         will be returned.
-        
+
         Keyword arguments:
         name        -- playlist name.
         description -- playlist description.
@@ -682,48 +682,48 @@ class Api(object):
             'name': name,
             'description': description,
             'tracks': ','.join(tracks)}
-            
+
         if extras: data['extras'] = ','.join(extras)
         result = self.call_api_authenticated(data)
-        
+
         return RdioPlaylist(result) if result else None
-    
+
     def current_user(self, extras=[]):
         """Gets information about the currently logged in user. Requires
         authentication.
-        
+
         Keyword arguments:
         extras -- a list of additional fields to return.
-        
+
         """
         data = {'method': methods['current_user']}
-        
+
         if extras: data['extras'] = ','.join(extras)
         result = self.call_api_authenticated(data)
         return RdioUser(result) if result else None
-    
+
     def delete_playlist(self, playlist):
         """Delete a playlist.
-        
+
         Keyword arguments:
         playlist -- the key of the playlist to delete.
-        
+
         """
         data = {'method': methods['delete_playlist'], 'playlist': playlist}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def find_user(self, email=None, vanity_name=None):
         """Finds an Rdio user by email or username. Exactly one of email or
         vanity_name must be supplied.
-        
+
         Keyword arguments:
         email       -- the desired user's email address.
         vanity_name -- the desired user's vanity name.
-        
+
         """
         data = {'method': methods['find_user']}
-        
+
         if email:
             if validate_email(email): data['email'] = email
             else: raise RdioInvalidParameterException(
@@ -731,25 +731,25 @@ class Api(object):
         if vanity_name: data['vanityName'] = vanity_name
         result = self.call_api(data)
         return RdioUser(result) if result else None
-    
+
     def get(self, keys, extras=[]):
         """Fetch one or more objects from Rdio.
-        
+
         Keyword arguments:
         keys   -- a list of keys for the objects to fetch.
         extras -- optional. A list of additional fields to return.
-        
+
         """
         data = {'method': methods['get'], 'keys': ','.join(keys)}
-            
+
         if extras: data['extras'] = ','.join(extras)
         results = self.call_api(data)
         return parse_result_dictionary(results) if results else None
-    
+
     def get_activity_stream(self, user, scope, last_id=None):
         """Get the activity events for a user, a user's friends, or everyone
         on Rdio.
-        
+
         Keyword arguments:
         user    -- the key of the user to retrieve an activity stream for.
         scope   -- the scope of the activity stream, either "user", "friends"
@@ -757,10 +757,10 @@ class Api(object):
         last_id -- optional. the last_id returned by the last call to
                    getActivityStream - only activity since that call will be
                    returned.
-        
+
         """
         data = {'method': methods['get_activity_stream'], 'user': user}
-        
+
         if scope:
             if scope in ('user','friends','everyone',):
                 data['scope'] = scope
@@ -770,11 +770,11 @@ class Api(object):
         if last_id: data['last_id'] = last_id
         results = self.call_api(data)
         return RdioActivityStream(results) if results else None
-    
+
     def get_albums_for_artist(self, artist, featuring=False, extras=[],
                               start=None, count=None):
         """Returns the albums by (or featuring) an artist.
-        
+
         Keyword arguments:
         artist      -- the key of the artist to retrieve albums for.
         featuring   -- optional. True returns albums the artist is featured on
@@ -782,17 +782,17 @@ class Api(object):
         extras      -- optional. A list of optional fields to return.
         start       -- optional. The offset of the first result to return.
         count       -- optional. The maximum number of results to return.
-        
+
         """
         data = {'method': methods['get_albums_for_artist'], 'artist': artist}
-        
+
         if featuring: data['featuring'] = featuring
         if extras: data['extras'] = ','.join(extras)
         if start: data['start'] = start
         if count: data['count'] = count
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def get_albums_for_artist_in_collection(self, artist, user=None):
         """Returns the albums by an artist in a user's collection.
 
@@ -804,17 +804,17 @@ class Api(object):
         data = {
             'method': methods['get_albums_for_artist_in_collection'],
             'artist': artist}
-        
+
         if user: data['user'] = user
-        
+
         if user: results = self.call_api(data)
         else: results = self.call_api_authenticated(data)
         return parse_result_list(results) if results else None
-    
+
     def get_albums_in_collection(self, user=None, start=None, count=None,
                                  sort=None, query=None):
         """Returns the albums in a user's collection.
-        
+
         Keyword arguments:
         user    -- optional. The owner of the collection to search.
         start   -- optional. The offset of the first result to return.
@@ -822,10 +822,10 @@ class Api(object):
         sort    -- optional. Ways to sort the results. Valid options are
                    'dateAdded', 'playCount', 'artist', and 'name'.
         query   -- optional. The query to filter albums with.
-        
+
         """
         data = {'method': methods['get_albums_in_collection']}
-        
+
         if user: data['user'] = user
         if start: data['start'] = start
         if count: data['count'] = count
@@ -838,7 +838,7 @@ class Api(object):
         if user: results = self.call_api(data)
         else: results = self.call_api_authenticated(data)
         return parse_result_list(results) if results else None
-    
+
     def get_artists_in_collection(self, user=None, start=None, count=None,
                                   sort=None, query=None):
         """Returns the albums in a user's collection.
@@ -850,10 +850,10 @@ class Api(object):
         sort    -- optional. Ways to sort the results. Valid option is
                    'name' only.
         query   -- optional. The query to filter artists with.
-        
+
         """
         data = {'method': methods['get_artists_in_collection']}
-        
+
         if user: data['user'] = user
         if start: data['start'] = start
         if count: data['count'] = count
@@ -866,12 +866,12 @@ class Api(object):
         if user: results = self.call_api(data)
         else: results = self.call_api_authenticated(data)
         return parse_result_list(results) if results else None
-    
+
     def get_heavy_rotation(self, user=None, object_type=None, friends=False,
                            limit=None):
        """Finds the most popular artists or albums for a user, their friends,
        or the whole site.
-       
+
        Keyword arguments:
        user        -- optional. The user to get heavy rotation for, or if this
                       is missing, everyone.
@@ -879,10 +879,10 @@ class Api(object):
        friends     -- optional. If True, gets the user's friend's heavy
                       rotation instead of the user's.
        limit       -- optional. The maximum number of results to return.
-       
+
        """
        data = {'method': methods['get_heavy_rotation']}
-       
+
        if user: data['user'] = user
        if object_type:
            if object_type in ('artists','albums',):
@@ -893,21 +893,21 @@ class Api(object):
        if limit: data['limit'] = limit
        results = self.call_api(data)
        return parse_result_list(results) if results else None
-    
+
     def get_new_releases(self, time=None, start=None, count=False,
                          extras=[]):
         """Returns new albums released across a timeframe.
-        
+
         Keyword arguments:
         time     -- optional. Timeframe, either 'thisweek', 'lastweek', or
                     'twoweeks'.
         start    -- optional. The offset of the first result to return.
         count    -- optional. The maximum number of results to return.
         extras   -- optional. A list of additional fields to return.
-        
+
         """
         data = {'method': methods['get_new_releases']}
-        
+
         if time:
             if time in ('thisweek','lastweek','twoweeks',):
                 data['time'] = time
@@ -918,74 +918,74 @@ class Api(object):
         if extras: data['extras'] = ','.join(extras)
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def get_object_from_short_code(self, short_code):
         """Returns the object that the supplied Rdio short-code is a
         representation of, or None if the short-code is invalid.
-        
+
         Keyword arguments:
         short_code -- the short-code (everything after http://rd.io/x/).
-        
+
         """
         data = {
             'method': methods['get_object_from_short_code'],
             'short_code': short_code}
-        
+
         result = self.call_api_authenticated(data)
         return derive_rdio_type_from_data(result) if result else None
-    
+
     def get_object_from_url(self, url):
         """Return the object that the supplied Rdio short-code is a
         representation of, or null if the short-code is invalid.
-        
+
         Keyword arguments:
         url -- the path portion of the url, including first slash.
-        
+
         """
         data = {'method': methods['get_object_from_url'], 'url': url}
         result = self.call_api_authenticated(data)
         return derive_rdio_type_from_data(result) if result else None
-    
+
     def get_playback_token(self, domain=None):
         """Get a playback token. If you are using this for web playback, you
         must supply a domain.
-        
+
         Keyword arguments:
         domain -- optional. The domain in which the playback SWF will be
                   embedded.
-        
+
         """
         data = {'method': methods['get_playback_token']}
         if domain: data['domain'] = domain
         result = self.call_api(data)
         return result if result else None
-    
+
     def get_playlists(self, extras=[]):
         """Get the current user's playlists.
-        
+
         Keyword arguments:
         extras -- optional. A list of additional fields to return.
-        
+
         """
         data = {'method': methods['get_playlists']}
         if extras: data['extras'] = ','.join(extras)
-        
+
         results = self.call_api_authenticated(data)
         return RdioPlaylistSet(results) if results else None
-    
+
     def get_top_charts(self, result_type, start=None, count=None, extras=[]):
         """Return the site-wide most popular items for a given type.
-        
+
         Keyword arguments:
         result_type -- type to include in results, valid values are "Artist",
                        "Album", "Track", and "Playlist".
         start       -- optional. The offset of the first result to return.
         count       -- optional. The maximum number of results to return.
         extras      -- optional. A list of additional fields to return.
-        
+
         """
         data = {'method': methods['get_top_charts']}
-        
+
         if result_type in ('Artist','Album','Track','Playlist',):
             data['type'] = result_type
         else: raise RdioInvalidParameterException(
@@ -995,29 +995,29 @@ class Api(object):
         if extras: data['extras'] = ','.join(extras)
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def get_tracks_for_album_in_collection(self, album, user=None, extras=[]):
         """Which tracks on the given album are in the user's collection.
-        
+
         Keyword arguments:
         album  -- the key of the album.
         user   -- optional. The user whose collection to examine.
         extras -- optional. A list of additional fields to return.
-        
+
         """
         data = {
             'method': methods['get_tracks_for_album_in_collection'],
             'album': album}
-            
+
         if user: data['user'] = user
         if extras: data['extras'] = ','.join(extras)
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def get_tracks_for_artist(self, artist, appears_on=None, extras=[],
                               start=None, count=None):
         """Get all of the tracks by this artist.
-        
+
         Keyword arguments:
         artist     -- the key of the artist.
         appears_on -- optional. If true, returns tracks that the artist appears
@@ -1025,40 +1025,40 @@ class Api(object):
         extras     -- optional. A list of additional fields to return.
         start      -- optional. The offset of the first result to return.
         count      -- optional. The maximum number of results to return.
-        
+
         """
         data = {'method': methods['get_tracks_for_artist'], 'artist': artist}
-        
+
         if appears_on: data['appears_on'] = appears_on
         if extras: data['extras'] = ','.join(extras)
         if start: data['start'] = start
         if count: data['count'] = count
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def get_tracks_for_artist_in_collection(self, artist, user=None,
                                             extras=[]):
         """Which tracks from the given artist are in the user's collection.
-        
+
         Keyword arguments:
         artist -- the key of the artist.
         user   -- optional. The user whose collection to examine.
         extras -- optional. A list of additional fields to return.
-        
+
         """
         data = {
             'method': methods['get_tracks_for_artist_in_collection'],
             'artist': artist}
-        
+
         if user: data['user'] = user
         if extras: data['extras'] = ','.join(extras)
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def get_tracks_in_collection(self, user=None, start=None, count=None,
                                  sort=None, query=None):
         """Get all of the tracks in the user's collection.
-        
+
         Keyword arguments:
         user  -- optional. The key of the collection user.
         start -- optional. The offset of the first result to return.
@@ -1066,10 +1066,10 @@ class Api(object):
         sort  -- optional. Sort by. Valid values are "dateAdded", "playCount",
                  "artist", "album", and "name".
         query -- optional. Filter collection tracks by this.
-        
+
         """
         data = {'method': methods['get_tracks_in_collection']}
-        
+
         if user: data['user'] = user
         if start: data['start'] = start
         if count: data['count'] = count
@@ -1081,41 +1081,41 @@ class Api(object):
         if query: data['query'] = query
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def remove_friend(self, user):
         """Remove a friend from the current user.
-        
+
         Keyword arguments
         user -- the key of the user to remove.
-        
+
         """
         data = {'method': methods['remove_friend'], 'user': user}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def remove_from_collection(self, keys):
         """Remove tracks or playlists from the current user's collection.
-        
+
         Keyword arguments:
         keys -- the list of track or playlist keys to remove from the
                 collection.
-        
+
         """
         data = {
             'method': methods['remove_from_collection'],
             'keys': ','.join(keys)}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def remove_from_playlist(self, playlist, tracks, index=None, count=None):
         """Remove an item from a playlist by its position in the playlist.
-        
+
         Keyword arguments:
         playlist -- the key of the playlist to modify.
         index    -- the index of the first item to remove.
         count    -- the number of tracks to remove from the playlist.
         tracks   -- the list of keys of the tracks to remove.
-        
+
         """
         data = {
             'method': methods['remove_from_playlist'],
@@ -1123,14 +1123,14 @@ class Api(object):
             'index': index if index else 0,
             'count': count if count else len(tracks),
             'tracks': ','.join(tracks)}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def search(self, query, types, never_or=None, extras=[], start=None,
                count=None):
         """Search for artists, albums, tracks, users, or all kinds of
         objects.
-        
+
         Keyword arguments:
         query    -- the search query.
         types    -- List of types to include in results. Valid values
@@ -1139,124 +1139,124 @@ class Api(object):
         extras   -- optional. A list of additional fields to return.
         start    -- optional. The offset of the first result to return.
         count    -- optional. The maximum number of results to return.
-        
+
         """
         data = {
             'method': methods['search'],
             'query': query,
             'types': ','.join(types)}
-        
+
         if never_or: data['never_or'] = never_or
         if extras: data['extras'] = ','.join(extras)
         if start: data['start'] = start
         if count: data['count'] = count
         results = self.call_api(data)
         return RdioSearchResult(results) if results else None
-    
+
     def search_suggestions(self, query, extras=[]):
         """Match the supplied prefix against artists, albums, tracks, and
         people in the Rdio system. Returns the first 10 matches.
-        
+
         Keyword arguments:
         query  -- the search prefix.
         extras -- optional. A list of additional fields to return.
-        
+
         """
         data = {'method': methods['search_suggestions'], 'query': query}
-        
+
         if extras: data['extras'] = ','.join(extras)
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def set_playlist_collaborating(self, playlist, collaborating):
         """Start or stop collaborating on a playlist.
-        
+
         Keyword arguments:
         playlist      -- the key of the playlist.
         collaborating -- true if you want to turn on collaboration.
-        
+
         """
-        
+
         data = {
             'method': methods['set_playlist_collaborating'],
             'playlist': playlist,
             'collaborating': collaborating}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def set_playlist_collaboration_mode(self, playlist, mode):
         """Set the playlist collaboration mode to allow no collaboration (0),
         all user collaboration (1), or collaboration with those followed by the
         playlist owner (2).
-        
+
         Keyword arguments:
         playlist -- the key of the playlist to modify.
         mode     -- the new mode for the playlist (an integer).
-        
+
         """
-        
+
         data = {
             'method': methods['set_playlist_collaboration_mode'],
             'playlist': playlist,
             'mode': mode}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def set_playlist_fields(self, playlist, name, description):
         """Sets the name and description for a playlist.
-        
+
         Keyword arguments:
         playlist    -- the key of the playlist to modify.
         name        -- the new name of the playlist.
         description -- the new description of the playlist.
-        
+
         """
-        
+
         data = {
             'method': methods['set_playlist_fields'],
             'playlist': playlist,
             'name': name,
             'description': description}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def set_playlist_order(self, playlist, tracks):
         """Saves the given order of tracks in a given playlist. The new order
         must have the same tracks as the previous order (this method may not
         be used to add/remove tracks).
-        
+
         Keyword arguments:
         playlist -- the key of the playlist to reorder.
         tracks   -- a list of the tracks in their new order.
-        
+
         """
-        
+
         data = {
             'method': methods['set_playlist_order'],
             'playlist': playlist,
             'tracks': ','.join(tracks)}
-        
+
         return self.call_api_authenticated(data)
-    
+
     def user_followers(self, user, start=None, count=None, extras=[]):
         """Get a list of users following a user.
-        
+
         Keyword arguments:
         user -- the key of the user.
         start -- optional. The offset of the first field to return.
         count -- optional. The max number of results to return.
         extras -- optional. A list of additional fields to return.
-        
+
         """
-        
+
         data = {'method': methods['user_followers'], 'user': user}
         if start: data['start'] = start
         if count: data['count'] = count
         if extras: data['extras'] = ','.join(extras)
-        
+
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
     def user_following(self, user, start=None, count=None, extras=[]):
         """Get a list of users that a user follows.
 
@@ -1275,7 +1275,7 @@ class Api(object):
 
         results = self.call_api(data)
         return parse_result_list(results) if results else None
-    
+
 
 def derive_rdio_type_from_data(rdio_object):
     if rdio_types[rdio_object['type']] == 'artist':
@@ -1289,15 +1289,17 @@ def derive_rdio_type_from_data(rdio_object):
     if rdio_types[rdio_object['type']] == 'user':
         return RdioUser(rdio_object)
 
+
 def validate_email(email):
     """Validates email address. Should work for now.
     From http://goo.gl/EuVRg.
 
     """
     if len(email) > 7:
-        if re.match("^.+\\@(\\[?)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,3}|[0-9]{1,3})(\\]?)$", email) != None:
+        if re.match("^.+\\@(\\[?)[a-zA-Z0-9\\-\\.]+\\.([a-zA-Z]{2,4}|[0-9]{1,3})(\\]?)$", email) != None:
             return 1
     return 0
+
 
 def parse_result_dictionary(results):
     """Takes a dictionary and returns a list of RdioObjects."""
@@ -1305,6 +1307,7 @@ def parse_result_dictionary(results):
     for rdio_object in results:
         objects.append(derive_rdio_type_from_data(results[rdio_object]))
     return objects
+
 
 def parse_result_list(results):
     """Takes a list and returns a list of RdioObjects."""
