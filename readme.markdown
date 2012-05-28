@@ -33,28 +33,28 @@ Then, follow the usage example below. Please code responsibly. Everything is ful
     rdio_manager = rdio.Api(CONSUMER_KEY, CONSUMER_SECRET)
     user = rdio_manager.find_user('benjaminkreeger@gmail.com')
     print '%s %s's key is: %s.' % (user.first_name, user.last_name, user.key)
-    
+
     # Set authorization: get authorization URL, then pass back the PIN.
     token_dict = rdio_manager.get_token_and_login_url()
     print 'Authorize this application at: %s?oauth_token=%s' % (
         token_dict['login_url'], token_dict['oauth_token'])
-    
+
     token_secret = token_dict['oauth_token_secret']
     oauth_verifier = raw_input('Enter the PIN / oAuth verifier: ').strip()
     token = raw_input('Enter oauth_token parameter from URL: ').strip()
     request_token = {"oauth_token":token, oauth_token_secret":token_secret}
     authorization_dict = rdio_manager.authorize_with_verifier(oauth_verifier, request_token)
-    
+
     # Get back key and secret. rdio_manager is now authorized
     # on the user's behalf.
     print 'Access token key: %s' % authorization_dict['oauth_token']
     print 'Access token secret: %s' % authorization_dict['oauth_token_secret']
-    
+
     # Make an authorized call.
     current_user = rdio_manager.current_user()
     print 'The full name of the current user is %s.' % (
         current_user.name,)
-    
+
     # Have some fun.
     search_object = rdio_manager.search(
             query='Big Echo',
@@ -73,11 +73,12 @@ Then, follow the usage example below. Please code responsibly. Everything is ful
             new_playlist.short_url)
     tracks = rdio_manager.get(new_playlist.track_keys)
     for t in tracks: print "%s (Duration: %i seconds)" % (t.name, t.duration.seconds,)
-    
+
 ## Version history
 
 Because you all care.
 
+ * **Version 0.6**: Corrected a regular expression that refused four-character TLDs in emails.
  * **Version 0.5**: Fixed some bugs around the 0.4 release, including making `user.last_song_played` an actual `RdioTrack`. Also made duration a `timedelta`.
  * **Version 0.4**: Added object types for Rdio stations as documented [here](http://goo.gl/ActAB). Also added user lists for heavy rotation results.
  * **Version 0.3**: All calls implemented; most of them are working properly. Some minor tweaking may need to be done here and there, but a majority of the work is done. Also, setuptools!
