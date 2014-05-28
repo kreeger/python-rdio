@@ -359,13 +359,13 @@ class RdioSearchResult(JSONBasedObject):
 
     def __init__(self, data):
         super(RdioSearchResult, self).__init__(data)
-        self.album_count = data['album_count']
-        self.artist_count = data['artist_count']
-        self.number_results = data['number_results']
-        self.person_count = data['person_count']
-        self.playlist_count = data['playlist_count']
-        self.track_count = data['track_count']
-        self.results = parse_result_list(data['results'])
+        self.album_count = data.get('album_count', 0)
+        self.artist_count = data.get('artist_count', 0)
+        self.number_results = data.get('number_results', 0)
+        self.person_count = data.get('person_count', 0)
+        self.playlist_count = data.get('playlist_count', 0)
+        self.track_count = data.get('track_count', 0)
+        self.results = parse_result_list(data.get('results', ''))
 
 class RdioActivityItem(JSONBasedObject):
     """Describes an item in Rdio's history object list."""
